@@ -146,4 +146,19 @@ const detectFromImage = async (req, res) => {
   }
 };
 
-module.exports = { detectFromImage, analyzeFrame, analyzeFrameWithYolo, analyzeFrameHeuristic };
+// @desc  Estimate crowd size/density from an uploaded frame (person-only
+//        YOLO detection — separate from the litter/waste detector above).
+//        Read-only: doesn't create incidents or tasks, just reports.
+// @route POST /api/cctv/detect-crowd
+const detectCrowdFromImage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'image file is required (field name: image)' });
+    const result = await mlServiceClient.detectCrowd(req.file.buffer);
+    res.json(result);
+  } catch (err) {
+    console.error('❌ [CCTV] crowd detect error:', err.message);
+    res.status(502).json({ message: 'Crowd detection unavailable (is ml-service running?)', error: err.message });
+  }
+};
+
+module.exports = { detectFromImage, analyzeFrame, analyzeFrameWithYolo, analyzeFrameHeuristic, detectCrowdFromImage };

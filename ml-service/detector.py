@@ -42,17 +42,25 @@ def _load_model():
     return _model
 
 
-def detect_image_bytes(data: bytes) -> dict:
+def _run_inference(data: bytes):
+    """Shared model call: decode bytes, run YOLO once, return the raw
+    ultralytics Result plus frame dimensions. Both detect_image_bytes
+    (clutter/litter) and detect_crowd_bytes (people) filter the same box
+    list differently rather than re-running inference twice per frame.
+    """
     from PIL import Image
     import io
 
     model = _load_model()
     image = Image.open(io.BytesIO(data)).convert("RGB")
     width, height = image.size
-    frame_area = max(1, width * height)
-
     results = model.predict(image, verbose=False)
-    result = results[0]
+    return results[0], width, height
+
+
+def detect_image_bytes(data: bytes) -> dict:
+    result, width, height = _run_inference(data)
+    frame_area = max(1, width * height)
 
     boxes_out = []
     covered_area = 0
@@ -84,4 +92,68 @@ def detect_image_bytes(data: bytes) -> dict:
         "boxes": boxes_out[:40],
         "imageSize": {"width": width, "height": height},
         "method": "yolov8n-coco-density-v1",
+    }
+
+
+# Person-count thresholds for crowd classification. Absolute count matters
+# more than coverage ratio at typical CCTV distances (people far from camera
+# are small on screen but the street is still genuinely crowded), so count
+# is the primary signal; a high coverage ratio (people close together / near
+# the camera) can still escalate a moderate count into "crowded".
+def classify_crowd(count: int, coverage_ratio: float) -> str:
+    if count == 0:
+        return 'empty'
+    if count <= 5:
+        level = 'sparse'
+    elif count <= 15:
+        level = 'moderate'
+    elif count <= 30:
+        level = 'busy'
+    else:
+        level = 'crowded'
+    # A tightly-packed frame escalates one level — but only once there are
+    # already enough people that high coverage plausibly means "packed
+    # crowd" rather than "close-up photo of a couple of people", which also
+    # produces a high coverage ratio (a handful of large boxes) without
+    # being crowded at all.
+    if count > 6 and coverage_ratio > 0.35 and level == 'moderate':
+        level = 'busy'
+    return level
+
+
+def detect_crowd_bytes(data: bytes) -> dict:
+    """Person-only detection for crowd density — the counterpart to
+    detect_image_bytes, which explicitly ignores people (that function is
+    about litter/clutter, this one is about how many people are in frame).
+    """
+    result, width, height = _run_inference(data)
+    frame_area = max(1, width * height)
+
+    people = []
+    covered_area = 0
+    names = result.names
+    for box in result.boxes:
+        cls_id = int(box.cls[0])
+        if names.get(cls_id) != 'person':
+            continue
+        conf = float(box.conf[0])
+        x1, y1, x2, y2 = [float(v) for v in box.xyxy[0]]
+        people.append({
+            'confidence': round(conf, 3),
+            'box': [round(x1, 1), round(y1, 1), round(x2, 1), round(y2, 1)],
+        })
+        covered_area += max(0, x2 - x1) * max(0, y2 - y1)
+
+    coverage_ratio = min(1.0, covered_area / frame_area)
+    count = len(people)
+    level = classify_crowd(count, coverage_ratio)
+
+    return {
+        'peopleCount': count,
+        'coverageRatio': round(coverage_ratio, 4),
+        'crowdLevel': level,
+        'isCrowded': level in ('busy', 'crowded'),
+        'people': people[:80],
+        'imageSize': {'width': width, 'height': height},
+        'method': 'yolov8n-person-density-v1',
     }
