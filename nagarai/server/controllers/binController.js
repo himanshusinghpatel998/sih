@@ -110,7 +110,6 @@ const optimizeBins = async (req, res) => {
 const getRecommendations = async (req, res) => {
   try {
     const recs = await BinRecommendation.find()
-      .populate('zone', 'name code')
       .populate('existingBin', 'binId capacityL location')
       .sort({ priority: -1 });
     res.json(recs);

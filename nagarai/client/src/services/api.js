@@ -129,6 +129,7 @@ export const createIncident = (data, formData) => API.post('/incidents', data, f
 
 // Tasks
 export const getTasks = (params) => API.get('/tasks', { params });
+export const deleteTask = (id) => API.delete(`/tasks/${id}`);
 
 // ML
 export const getMLStatus = () => API.get('/ml/status');

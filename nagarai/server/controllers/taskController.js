@@ -71,4 +71,18 @@ const updateTaskStatus = async (req, res) => {
   }
 };
 
-module.exports = { listTasks, updateTaskStatus };
+// @desc  Delete a task
+// @route DELETE /api/tasks/:id
+const deleteTask = async (req, res) => {
+  try {
+    const task = await CollectionTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+
+    await CollectionTask.deleteOne({ _id: task._id });
+    res.json({ message: 'Task deleted', id: req.params.id });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+module.exports = { listTasks, updateTaskStatus, deleteTask };
