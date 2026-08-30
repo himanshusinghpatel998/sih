@@ -100,7 +100,7 @@ const optimizeBins = async (req, res) => {
     results.sort((a, b) => (a.action === 'no_action' ? 1 : 0) - (b.action === 'no_action' ? 1 : 0) || b.priority - a.priority);
     res.json({ count: results.length, results });
   } catch (err) {
-    console.error('❌ [BINS] optimize error:', err.message);
+    console.error(' [BINS] optimize error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

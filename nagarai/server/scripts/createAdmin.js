@@ -24,12 +24,12 @@ const run = async () => {
     user.role = 'admin';
   }
   await user.save(); // triggers pre('save') bcrypt hashing
-  console.log(`✅ Admin ready — login with email "${email}" / password "${password}"`);
+  console.log(` Admin ready — login with email "${email}" / password "${password}"`);
 
   await mongoose.disconnect();
 };
 
 run().catch((err) => {
-  console.error('❌ createAdmin failed:', err);
+  console.error(' createAdmin failed:', err);
   process.exit(1);
 });

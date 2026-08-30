@@ -36,7 +36,7 @@ const generate = async (req, res) => {
     const exported = exportDataset(rows, { name: 'nagarai' });
     res.json({ count: rows.length, ...exported });
   } catch (err) {
-    console.error('❌ [ML] generate error:', err.message);
+    console.error(' [ML] generate error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -61,7 +61,7 @@ const trainEndpoint = async (req, res) => {
     const file = saveModel(model, { engine });
     res.json({ backend: model.backend, rows: model.numRows, modelFile: file });
   } catch (err) {
-    console.error('❌ [ML] train error:', err.message);
+    console.error(' [ML] train error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

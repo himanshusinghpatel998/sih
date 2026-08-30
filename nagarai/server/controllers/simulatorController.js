@@ -31,7 +31,7 @@ const runSimulation = async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error('❌ [SIMULATOR] error:', err.message);
+    console.error(' [SIMULATOR] error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

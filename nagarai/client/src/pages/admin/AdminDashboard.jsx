@@ -180,7 +180,7 @@ export default function AdminDashboard() {
   };
 
   const handleOrderStatus = async (orderId, newStatus) => {
-    try { await updateOrderStatus(orderId, { status: newStatus }); toast.success(`Order ${orderId} → ${newStatus}`); loadStoreOrders(); }
+    try { await updateOrderStatus(orderId, { status: newStatus }); toast.success(`Order ${orderId}  ${newStatus}`); loadStoreOrders(); }
     catch (err) { toast.error(err.response?.data?.message || 'Error updating status'); }
   };
 

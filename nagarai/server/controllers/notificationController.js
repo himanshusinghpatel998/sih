@@ -29,7 +29,7 @@ const getNotifications = async (req, res) => {
 
     res.json(notifications);
   } catch (err) {
-    console.error(`❌ [NOTIFICATIONS ERROR]: ${err.message}`);
+    console.error(` [NOTIFICATIONS ERROR]: ${err.message}`);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -77,7 +77,7 @@ const markAllAsRead = async (req, res) => {
 const createNotification = async (userId, message, type) => {
   try {
     if (!userId) {
-      console.error('⚠️ [NOTIFICATION] Cannot create notification: No userId provided');
+      console.error(' [NOTIFICATION] Cannot create notification: No userId provided');
       return;
     }
     
@@ -86,9 +86,9 @@ const createNotification = async (userId, message, type) => {
       message,
       type
     });
-    console.log(`🔔 [NOTIFICATION] Created for user ${userId}: "${message}" (${type})`);
+    console.log(` [NOTIFICATION] Created for user ${userId}: "${message}" (${type})`);
   } catch (err) {
-    console.error('❌ [NOTIFICATION ERROR]:', err.message);
+    console.error(' [NOTIFICATION ERROR]:', err.message);
   }
 };
 

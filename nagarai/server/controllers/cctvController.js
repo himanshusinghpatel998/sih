@@ -6,7 +6,7 @@
  * implements the full *flow* the PRD describes — frame in, detection out,
  * incident auto-created, worker task dispatched — using an explicit image
  * heuristic (pixel-variance/clutter proxy) instead of a trained model, so the
- * closed-loop demo (upload/simulate a frame → AI flags it → incident →
+ * closed-loop demo (upload/simulate a frame  AI flags it  incident 
  * worker task) works end-to-end. Swapping in a real detector later only
  * means replacing `analyzeFrame()` below — the incident/task pipeline is
  * unaffected.
@@ -59,7 +59,7 @@ const detectFromImage = async (req, res) => {
       try {
         imageUrl = await uploadToCloudinary(req.file, 'nagarai/cctv');
       } catch (e) {
-        console.error('⚠️ CCTV frame upload failed:', e.message);
+        console.error(' CCTV frame upload failed:', e.message);
       }
 
       const incidentData = {
@@ -88,7 +88,7 @@ const detectFromImage = async (req, res) => {
       for (const a of admins) {
         await createNotification(
           a._id,
-          `📹 CCTV detected ${incident.type} (${detection.severity}) — incident ${incident.incidentId}`,
+          ` CCTV detected ${incident.type} (${detection.severity}) — incident ${incident.incidentId}`,
           'incident'
         ).catch(() => {});
       }
@@ -111,7 +111,7 @@ const detectFromImage = async (req, res) => {
 
     res.json({ detection, incident, task });
   } catch (err) {
-    console.error('❌ [CCTV] detect error:', err.message);
+    console.error(' [CCTV] detect error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
     setUser(res.data.user);
     // Increment session key to force all dashboard components to remount with fresh state
     setSessionKey((k) => k + 1);
-    console.log(`🔑 [AUTH] Logged in as ${res.data.user.email} | role: ${res.data.user.role} | block: ${res.data.user.block || 'N/A'}`);
+    console.log(` [AUTH] Logged in as ${res.data.user.email} | role: ${res.data.user.role} | block: ${res.data.user.block || 'N/A'}`);
     return res.data.user;
   }, []);
 
@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
-    console.log('🔓 [AUTH] Logging out — clearing all state');
+    console.log(' [AUTH] Logging out — clearing all state');
     localStorage.removeItem('wms_token');
     setUser(null);
     // Increment session key so next login gets completely fresh components

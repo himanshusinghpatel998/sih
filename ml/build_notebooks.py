@@ -250,7 +250,7 @@ def label_cluster(row):
 profile["cluster_label"] = profile.apply(label_cluster, axis=1)
 profile[["n_bins", "avg_fill_pct", "overflow_rate", "festival_sensitivity", "weekend_sensitivity", "cluster_label"]]"""),
 
-md("## 5. Save the bin → cluster mapping\nThis file is imported by Notebooks 03 and 04 (`feature_engineering.merge_cluster_labels`)."),
+md("## 5. Save the bin  cluster mapping\nThis file is imported by Notebooks 03 and 04 (`feature_engineering.merge_cluster_labels`)."),
 code("""out = agg[["bin_id", "zone_type", "zone_name", "bin_cluster_id"]].merge(
     profile[["cluster_label"]], left_on="bin_cluster_id", right_index=True
 )
@@ -309,9 +309,9 @@ df[["bin_id", "date", "bin_cluster_id"]].head()"""),
 
 md("## 2. Chronological train / validation / test split\nTrain through 2024-11-30, validate through 2025-02-28, test on the final 3 months — never shuffled."),
 code("""train, val, test = chronological_split(df)
-print("Train:", train.shape, train["date"].min().date(), "→", train["date"].max().date())
-print("Val:  ", val.shape,   val["date"].min().date(),   "→", val["date"].max().date())
-print("Test: ", test.shape,  test["date"].min().date(),  "→", test["date"].max().date())
+print("Train:", train.shape, train["date"].min().date(), "", train["date"].max().date())
+print("Val:  ", val.shape,   val["date"].min().date(),   "", val["date"].max().date())
+print("Test: ", test.shape,  test["date"].min().date(),  "", test["date"].max().date())
 
 X_train, y_train, meta_train = get_model_frame(train, TARGET_REGRESSION, extra_categorical=["bin_cluster_id"])
 X_val,   y_val,   meta_val   = get_model_frame(val,   TARGET_REGRESSION, extra_categorical=["bin_cluster_id"])
@@ -578,7 +578,7 @@ md("""## 9. Summary
 - XGBoost classifier with `scale_pos_weight` handles the 10.2% positive-class imbalance without synthetic oversampling.
 - Threshold tuned for ~85% recall (catch most real overflow events), reporting the resulting precision as the honest trade-off.
 - `overflow_risk_pct` from this notebook is what feeds OR-Tools' route-priority weights in the wider architecture — bins with higher scores get visited earlier.
-- This closes the loop described in `ML_PIPELINE_PLAN.md`: Model 3 (clusters) → Models 1 & 2 (forecasts + risk) → route optimization (outside this notebook's scope)."""),
+- This closes the loop described in `ML_PIPELINE_PLAN.md`: Model 3 (clusters)  Models 1 & 2 (forecasts + risk)  route optimization (outside this notebook's scope)."""),
 ]
 
 nbf.write(nb(cells_04), "04_model2_overflow_classification.ipynb")

@@ -57,7 +57,7 @@ const createEvent = async (req, res) => {
 
     res.status(201).json({ event, impact });
   } catch (err) {
-    console.error('❌ [EVENT] create error:', err.message);
+    console.error(' [EVENT] create error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
