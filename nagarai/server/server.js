@@ -26,6 +26,7 @@ const simulatorRoutes = require('./routes/simulatorRoutes');
 const sweepingRoutes = require('./routes/sweepingRoutes');
 const cctvRoutes = require('./routes/cctvRoutes');
 const publicRoutes = require('./routes/publicRoutes');
+const { backfillPredictionOutcomes } = require('./services/predictionFeedback');
 
 const app = express();
 
@@ -129,7 +130,20 @@ app.use((err, req, res, next) => {
   });
 });
 
-//  Start server (Render compatible)
+// ✅ Phase H — periodically backfill actual-vs-predicted outcomes so
+// prediction accuracy (GET /api/predictions/accuracy) is real, not aspirational.
+const PREDICTION_BACKFILL_INTERVAL_MS = Number(process.env.PREDICTION_BACKFILL_INTERVAL_MS) || 30 * 60 * 1000;
+const runPredictionBackfill = () => {
+  backfillPredictionOutcomes()
+    .then((result) => {
+      if (result.updated > 0) console.log(`📊 [PREDICTION] backfilled ${result.updated} outcome(s)`, result);
+    })
+    .catch((err) => console.error('❌ [PREDICTION] scheduled backfill failed:', err.message));
+};
+setTimeout(runPredictionBackfill, 15000);
+setInterval(runPredictionBackfill, PREDICTION_BACKFILL_INTERVAL_MS);
+
+// ✅ Start server (Render compatible)
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

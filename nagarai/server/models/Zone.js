@@ -25,6 +25,13 @@ const zoneSchema = new mongoose.Schema(
     commercialDensity: { type: Number, default: 0 }, // 0-1
     residentialDensity: { type: Number, default: 0 }, // 0-1
     footfall: { type: Number, default: 0 }, // average daily footfall
+    areaM2: { type: Number, default: 0 },
+    // Dominant real-world character (market/commercial/tourist/mixed_use/
+    // institutional/residential_high/residential_low/industrial) — set from
+    // ml/bins_master.csv's zone_type on import. Drives sweeping's road-type
+    // inference directly instead of guessing from landmark counts, which
+    // flattens out once every zone has at least some restaurant landmarks.
+    zoneType: { type: String, default: null },
     weatherMultiplier: { type: Number, default: 1 }, // present/future weather influence
   },
   { timestamps: true }

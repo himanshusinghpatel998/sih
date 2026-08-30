@@ -128,7 +128,7 @@ const valueMatches = (docVal, cond) => {
       switch (op) {
         case '$in': return (opVal || []).some((v) => idStr(v) === idStr(docVal));
         case '$nin': return !(opVal || []).some((v) => idStr(v) === idStr(docVal));
-        case '$ne': return idStr(docVal) !== idStr(opVal);
+        case '$ne': return opVal === null ? (docVal !== null && docVal !== undefined) : idStr(docVal) !== idStr(opVal);
         case '$gte': return docVal != null && new Date(docVal) >= new Date(opVal) || (typeof docVal === 'number' && docVal >= opVal);
         case '$lte': return docVal != null && new Date(docVal) <= new Date(opVal) || (typeof docVal === 'number' && docVal <= opVal);
         case '$gt': return (typeof docVal === 'number' ? docVal > opVal : new Date(docVal) > new Date(opVal));
@@ -140,6 +140,16 @@ const valueMatches = (docVal, cond) => {
   }
   if (cond === null) return docVal === null || docVal === undefined;
   return idStr(docVal) === idStr(cond);
+};
+
+// True when a filter is exactly `{ _id: <scalar> }` — the shape findById /
+// findByIdAndUpdate / findByIdAndDelete all reduce to, and the one case
+// where an indexed lookup (instead of a full-table scan) is worth having.
+const isPlainIdFilter = (filter) => {
+  const keys = Object.keys(filter || {});
+  if (keys.length !== 1 || keys[0] !== '_id') return false;
+  const v = filter._id;
+  return v == null || typeof v !== 'object' || v instanceof Date;
 };
 
 const matchFilter = (doc, filter = {}) => {
@@ -204,7 +214,13 @@ class Query {
   populate(field, sel) { this._populates.push({ field, sel }); return this; }
 
   async exec() {
-    let rows = this.model._all().filter((r) => matchFilter(r, this.filter));
+    let rows;
+    if (!this.multi && isPlainIdFilter(this.filter)) {
+      const row = this.model._getById(this.filter._id);
+      rows = row ? [row] : [];
+    } else {
+      rows = this.model._all().filter((r) => matchFilter(r, this.filter));
+    }
     if (this._sort) rows = rows.slice().sort(getSortCmp(this._sort));
     if (this._skip) rows = rows.slice(this._skip);
     if (this._limit != null) rows = rows.slice(0, this._limit);
@@ -330,6 +346,12 @@ function makeModel(name, schema) {
       return rows.map((r) => reviveDoc(r.doc));
     }
 
+    static _getById(id) {
+      ensureTable(table);
+      const row = ensureDb().prepare(`SELECT doc FROM "${table}" WHERE _id = ?`).get(String(id));
+      return row ? reviveDoc(row.doc) : null;
+    }
+
     static _saveRow(obj) {
       ensureTable(table);
       ensureDb().prepare(`INSERT OR REPLACE INTO "${table}" (_id, doc) VALUES (?, ?)`).run(obj._id, serializeDoc(obj));
@@ -374,7 +396,9 @@ function makeModel(name, schema) {
       return { deletedCount: rows.length };
     }
     static async deleteOne(filter = {}) {
-      const row = Model._all().find((r) => matchFilter(r, filter));
+      const row = isPlainIdFilter(filter)
+        ? Model._getById(filter._id)
+        : Model._all().find((r) => matchFilter(r, filter));
       if (row) Model._deleteRow(row._id);
       return { deletedCount: row ? 1 : 0 };
     }
@@ -383,8 +407,15 @@ function makeModel(name, schema) {
       return Model._all().filter((r) => matchFilter(r, filter)).length;
     }
 
+    static async exists(filter = {}) {
+      const row = Model._all().find((r) => matchFilter(r, filter));
+      return row ? { _id: row._id } : null;
+    }
+
     static async findOneAndUpdate(filter, update = {}, opts = {}) {
-      const existing = Model._all().find((r) => matchFilter(r, filter));
+      const existing = isPlainIdFilter(filter)
+        ? Model._getById(filter._id)
+        : Model._all().find((r) => matchFilter(r, filter));
       const applyOps = (base) => {
         const out = { ...base };
         for (const [op, fields] of Object.entries(update)) {

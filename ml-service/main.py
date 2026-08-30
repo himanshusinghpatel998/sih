@@ -10,7 +10,18 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+# ml/routing/* prints emoji status lines at import/run time; Windows' default
+# console codepage (cp1252) can't encode them and raises UnicodeEncodeError
+# on first import. Force UTF-8 stdio so those prints degrade to '?' instead
+# of crashing the service.
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -18,6 +29,7 @@ ML_DIR = Path(__file__).resolve().parent.parent / "ml"
 sys.path.insert(0, str(ML_DIR))
 
 import inference  # noqa: E402
+import routing_service  # noqa: E402
 
 
 def _sanitize(obj):
@@ -74,6 +86,109 @@ def predict_batch(req: BatchRequest = BatchRequest()):
 @app.get("/bins")
 def bins():
     return {"binIds": inference.list_bin_ids()}
+
+
+# ─── Computer vision (Phase F) ────────────────────────────────────────────
+
+@app.get("/detect/health")
+def detect_health():
+    from detector import _load_model
+
+    _load_model()
+    return {"status": "ok", "detector": "yolov8n"}
+
+
+@app.post("/detect/frame")
+async def detect_frame(file: UploadFile = File(...)):
+    from detector import detect_image_bytes
+
+    data = await file.read()
+    try:
+        return _sanitize(detect_image_bytes(data))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ─── Routing (demand scoring, OR-Tools optimization, worker assignment,
+# bin recommendations, dynamic rerouting) — wraps ml/routing/* ────────────
+
+@app.post("/routes/demand-scores")
+def routes_demand_scores(payload: dict = Body(...)):
+    try:
+        return _sanitize({"scores": routing_service.demand_scores(payload.get("bins", []))})
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/routes/optimize")
+def routes_optimize(payload: dict = Body(...)):
+    try:
+        return _sanitize(routing_service.optimize_routes(payload.get("bins", []), payload.get("fleet")))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/routes/recommendations")
+def routes_recommendations(payload: dict = Body(...)):
+    try:
+        return _sanitize(routing_service.recommendations(payload.get("bins", [])))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/routes/assign-workers")
+def routes_assign_workers(payload: dict = Body(...)):
+    try:
+        return _sanitize(routing_service.assign_workers(payload.get("routes", {}), payload.get("workers")))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/routes/reroute/insert-bin")
+def routes_reroute_insert(payload: dict = Body(...)):
+    bin_id = payload.get("binId")
+    if not bin_id:
+        raise HTTPException(status_code=400, detail="binId is required")
+    try:
+        return _sanitize(routing_service.reroute_insert_bin(
+            payload.get("routes", {}),
+            payload.get("bins", []),
+            bin_id,
+            payload.get("scores"),
+            payload.get("currentLocation"),
+        ))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/routes/reroute/breakdown")
+def routes_reroute_breakdown(payload: dict = Body(...)):
+    vehicle_id = payload.get("vehicleId")
+    if not vehicle_id:
+        raise HTTPException(status_code=400, detail="vehicleId is required")
+    try:
+        return _sanitize(routing_service.reroute_breakdown(
+            payload.get("routes", {}), payload.get("bins", []), vehicle_id
+        ))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/routes/reroute/traffic")
+def routes_reroute_traffic(payload: dict = Body(...)):
+    vehicle_id = payload.get("vehicleId")
+    if not vehicle_id:
+        raise HTTPException(status_code=400, detail="vehicleId is required")
+    try:
+        return _sanitize(routing_service.reroute_traffic(
+            payload.get("routes", {}),
+            payload.get("bins", []),
+            vehicle_id,
+            payload.get("delayMinutes", 10),
+            payload.get("affectedStops", []),
+        ))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 if __name__ == "__main__":

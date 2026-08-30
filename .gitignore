@@ -14,3 +14,5 @@ __pycache__/
 .venv/
 venv/
 sih_venv/
+*.pt
+ml-service/weights/

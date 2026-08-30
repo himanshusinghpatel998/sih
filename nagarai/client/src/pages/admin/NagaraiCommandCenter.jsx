@@ -29,7 +29,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import NagaraiMap from "../../components/map/NagaraiMap";
+import NagaraiMap, { ROUTE_COLORS } from "../../components/map/NagaraiMap";
 import API from "../../services/api";
 import {
   runPredictions,
@@ -39,13 +39,15 @@ import {
   getBinRecommendations,
   generateRoutes,
   deployRoutes,
+  advanceDay,
   getWorkforce,
   getTasks,
   deleteTask,
   getIncidents,
   getMLStatus,
   analyzeSweeping,
-  getSweepingNeeds,
+  getSweepingPlan,
+  deploySweeping,
   detectCctvFrame,
 } from "../../services/api";
 import { Button } from "../../components/ui/Button";
@@ -60,6 +62,7 @@ import { Badge } from "../../components/ui/Badge";
 import AnimatedStat from "../../components/ui/AnimatedStat";
 import TabTransition from "../../components/ui/TabTransition";
 import { cn } from "../../lib/utils";
+import { CITY_NAME, CITY_CENTER, CITY_DEFAULT_ZOOM } from "../../lib/cityConfig";
 
 const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString());
 const pctTone = (p) =>
@@ -459,12 +462,15 @@ export default function NagaraiCommandCenter() {
     collectionFrequencyHrs: 0,
   });
   const [sweepNeeds, setSweepNeeds] = useState([]);
+  const [sweepPlan, setSweepPlan] = useState(null);
   const [cctvForm, setCctvForm] = useState({
-    lat: "19.076",
-    lng: "72.8777",
+    lat: String(CITY_CENTER.lat),
+    lng: String(CITY_CENTER.lng),
     file: null,
     preview: null,
   });
+  const [routeMeta, setRouteMeta] = useState({ engine: null, workerAssignmentEngine: null, depot: null, criticalBins: 0, opportunisticBins: 0 });
+  const [dayResult, setDayResult] = useState(null);
   const [cctvResult, setCctvResult] = useState(null);
 
   const loadCity = useCallback(async () => {
@@ -513,19 +519,6 @@ export default function NagaraiCommandCenter() {
           "Prediction engine unavailable — check MONGO_URI / ML_SERVICE_URL.",
         );
       }
-      // Pre-load every tab's persisted data so nothing renders empty.
-      try { setTasks((await getTasks()).data || []); } catch {}
-      try { setSweepNeeds((await getSweepingNeeds()).data || []); } catch {}
-      try {
-        const r = await generateRoutes({ weather: "clear" });
-        setRoutes((r.data && r.data.routes) || []);
-        setUnassigned((r.data && r.data.unassigned) || []);
-      } catch (e) {}
-      try {
-        const rec = await getBinRecommendations();
-        setRecommendations(rec.data || []);
-        setOptimized(rec.data.length > 0);
-      } catch (e) {}
       setLoading(false);
     })();
   }, [loadCity]);
@@ -537,7 +530,14 @@ export default function NagaraiCommandCenter() {
       const r = await generateRoutes({ weather: "clear" });
       setRoutes((r.data && r.data.routes) || []);
       setUnassigned((r.data && r.data.unassigned) || []);
-      toast.success("Routes generated");
+      setRouteMeta({
+        engine: r.data?.engine || null,
+        workerAssignmentEngine: null,
+        depot: r.data?.depot || null,
+        criticalBins: r.data?.criticalBins || 0,
+        opportunisticBins: r.data?.opportunisticBins || 0,
+      });
+      toast.success(`Routes generated${r.data?.engine === "ortools" ? " (OR-Tools)" : ""}`);
     } catch (e) {
       setErr("Route generation failed.");
       toast.error("Route generation failed");
@@ -554,7 +554,15 @@ export default function NagaraiCommandCenter() {
       setUnassigned((r.data && r.data.unassigned) || []);
       const t = await getTasks();
       setTasks(t.data || []);
-      toast.success("Routes deployed — tasks created");
+      setRouteMeta({
+        engine: r.data?.engine || null,
+        workerAssignmentEngine: r.data?.workerAssignmentEngine || null,
+        depot: r.data?.depot || null,
+        criticalBins: r.data?.criticalBins || 0,
+        opportunisticBins: r.data?.opportunisticBins || 0,
+      });
+      setDayResult(null);
+      toast.success(`Routes deployed — ${r.data?.tasksCreated ?? 0} task(s) created`);
     } catch (e) {
       setErr("Deploy failed.");
       toast.error("Deploy failed");
@@ -599,6 +607,24 @@ export default function NagaraiCommandCenter() {
       await performDelete(id);
       toast.success("Task deleted");
     }, 6000);
+  };
+
+  // Closes the loop: bins on today's deployed routes get reset (collected),
+  // every other bin's predicted growth carries forward as tomorrow's
+  // starting fill — so leftover trash compounds instead of vanishing, and
+  // the next "Run prediction" reflects it.
+  const handleAdvanceDay = async () => {
+    setBusy('advance'); setErr(null);
+    try {
+      const collectedBinIds = routes.flatMap((r) => (r.stops || []).map((s) => s.binId));
+      const r = await advanceDay({ collectedBinIds, weather: 'clear' });
+      setDayResult(r.data);
+      setRoutes([]);
+      setUnassigned([]);
+      setRouteMeta({ engine: null, workerAssignmentEngine: null, depot: null });
+      toast.success(`Day advanced — ${r.data.collected} bin(s) collected, ${r.data.advanced} carried over`);
+    } catch (e) { setErr('Advance day failed.'); toast.error('Advance day failed'); }
+    setBusy('');
   };
 
   const handleOptimizeBins = async () => {
@@ -646,6 +672,31 @@ export default function NagaraiCommandCenter() {
       toast.error("Sweeping analysis failed");
     }
     setBusy("");
+  };
+
+  // Preview only — builds the TSP sweep route from open litter incidents +
+  // high-footfall zones, no tasks created yet.
+  const handlePlanSweeping = async () => {
+    setBusy('sweepplan'); setErr(null);
+    try {
+      const res = await getSweepingPlan();
+      setSweepPlan(res.data);
+      if (!res.data.candidates) toast('No litter incidents or high-footfall zones need sweeping right now.');
+      else toast.success(`Sweep route planned — ${res.data.segments.length} sweeper segment(s)`);
+    } catch (e) { setErr('Sweeping plan failed.'); toast.error('Sweeping plan failed'); }
+    setBusy('');
+  };
+
+  // Same plan, but persists CollectionTask(type: 'sweeping') per segment,
+  // assigned to available sweeping-skilled workers.
+  const handleDeploySweeping = async () => {
+    setBusy('sweepdeploy'); setErr(null);
+    try {
+      const res = await deploySweeping();
+      setSweepPlan(res.data);
+      toast.success(`Deployed ${res.data.tasksCreated} sweeper task(s)`);
+    } catch (e) { setErr('Sweeping deploy failed.'); toast.error('Sweeping deploy failed'); }
+    setBusy('');
   };
 
   const handleCctvDetect = async () => {
@@ -724,7 +775,7 @@ export default function NagaraiCommandCenter() {
       >
         <div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Predictive municipal waste &amp; sanitation intelligence — NagarCity
+            Predictive municipal waste &amp; sanitation intelligence — {CITY_NAME}
           </p>
         </div>
         <Badge
@@ -826,8 +877,8 @@ export default function NagaraiCommandCenter() {
                     bins={mapBins}
                     heat={heatPoints}
                     routes={routes}
-                    center={{ lat: 19.076, lng: 72.8777 }}
-                    zoom={14}
+                    center={CITY_CENTER}
+                    zoom={CITY_DEFAULT_ZOOM}
                     height="360px"
                   />
                   {!mapBins.length && (
@@ -1208,87 +1259,124 @@ export default function NagaraiCommandCenter() {
         {/* ============ ROUTES ============ */}
         {tab === "routes" && (
           <div className="space-y-4">
-            <div className="flex gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button onClick={handleGenerate} disabled={!!busy}>
-                {busy === "generate" ? "Generating…" : "Generate CVRP routes"}
+                {busy === "generate" ? "Generating…" : "Generate routes"}
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleDeploy}
-                disabled={!!busy}
-              >
-                {busy === "deploy"
-                  ? "Deploying…"
-                  : "Deploy routes  create tasks"}
+              <Button variant="outline" onClick={handleDeploy} disabled={!!busy}>
+                {busy === "deploy" ? "Deploying…" : "Deploy routes → create tasks"}
               </Button>
+              <Button variant="outline" onClick={handleAdvanceDay} disabled={!!busy || !routes.length}>
+                {busy === "advance" ? "Advancing…" : "Complete today's collection → advance day"}
+              </Button>
+              {routeMeta.engine && (
+                <Badge variant={routeMeta.engine === "ortools" ? "success" : "muted"}>
+                  <Cpu className="h-3 w-3" /> {routeMeta.engine === "ortools" ? "OR-Tools optimizer" : "Greedy CVRP (fallback)"}
+                </Badge>
+              )}
+              {routeMeta.workerAssignmentEngine && (
+                <Badge variant={routeMeta.workerAssignmentEngine === "ml-service" ? "success" : "muted"}>
+                  <Users2 className="h-3 w-3" /> {routeMeta.workerAssignmentEngine === "ml-service" ? "Skill-matched crews" : "Round-robin crews"}
+                </Badge>
+              )}
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <AnimatedStat
-                label="Vehicles in plan"
-                value={fleetSize}
-                tone="brand"
-                icon={Truck}
-              />
-              <AnimatedStat
-                label="Total load (kg)"
-                value={totalDemand}
-                tone="brand"
-                icon={Trash2}
-              />
-              <AnimatedStat
-                label="Unassigned bins"
-                value={unassigned.length}
-                tone="danger"
-                icon={AlertTriangle}
-              />
+            <p className="text-xs text-muted-foreground">
+              The loop: <strong>Run prediction</strong> (Predictions tab) finds risk → bins ≥90% full (or ≥90 predicted risk) become
+              mandatory stops, right-sized trucks (1–20t tiers) are dispatched for them, and bins at 70–89% get folded into
+              whichever route already passes within 600m — <strong>Complete today's collection</strong> then resets the bins that
+              were picked up and carries every other bin's predicted growth into tomorrow's starting level.
+            </p>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+              <AnimatedStat label="Critical bins (≥90%)" value={routeMeta.criticalBins} tone="danger" icon={AlertTriangle} />
+              <AnimatedStat label="Opportunistic (70-89%)" value={routeMeta.opportunisticBins} tone="signal" icon={Trash2} />
+              <AnimatedStat label="Vehicles in plan" value={fleetSize} tone="brand" icon={Truck} />
+              <AnimatedStat label="Total load (kg)" value={totalDemand} tone="brand" icon={Trash2} />
+              <AnimatedStat label="Unassigned bins" value={unassigned.length} tone="danger" icon={AlertTriangle} />
             </div>
+            {dayResult && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Day advanced</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div><span className="text-muted-foreground">Collected (reset)</span><div className="text-lg font-semibold text-success-600 dark:text-success-400">{dayResult.collected}</div></div>
+                    <div><span className="text-muted-foreground">Carried over (grew)</span><div className="text-lg font-semibold text-signal-600 dark:text-signal-400">{dayResult.advanced}</div></div>
+                    <div><span className="text-muted-foreground">Untouched (no zone)</span><div className="text-lg font-semibold">{dayResult.untouched}</div></div>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">Run a new prediction to see tomorrow's risk based on this.</p>
+                </CardContent>
+              </Card>
+            )}
             {routes.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>
-                    Route overlay (each color = one vehicle)
+                    Route overlay — each color is one vehicle, numbered stops are visit order
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <NagaraiMap
                     bins={mapBins}
                     routes={routes}
-                    center={{ lat: 19.076, lng: 72.8777 }}
-                    zoom={13}
-                    height="360px"
+                    depot={routeMeta.depot}
+                    routeStopMarkers
+                    center={CITY_CENTER}
+                    zoom={CITY_DEFAULT_ZOOM}
+                    height="420px"
                   />
                 </CardContent>
               </Card>
             )}
-            {routes.map((r) => (
-              <Card key={r.vehicle}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Truck className="h-4 w-4" /> {r.vehicle}{" "}
-                    <Badge variant="success">
-                      {r.utilizationPct ?? 0}% loaded
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="mb-2 text-xs text-muted-foreground">
-                    {r.stops?.length} stops · {fmt(r.totalDemandKg)} kg ·{" "}
-                    {fmt(r.totalDistanceM)} m · capacity{" "}
-                    {fmt(r.vehicleCapacityKg)} kg
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {r.stops?.map((s) => (
-                      <Badge
-                        key={s.binId}
-                        variant={riskVariant(s.priority || 0)}
-                      >
-                        {s.binId}
+            {routes.map((r, i) => {
+              const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
+              const criticalCount = (r.stops || []).filter((s) => s.tier !== "opportunistic").length;
+              const onWayCount = (r.stops || []).filter((s) => s.tier === "opportunistic").length;
+              return (
+                <Card key={r.vehicle}>
+                  <CardHeader>
+                    <CardTitle className="flex flex-wrap items-center gap-2">
+                      <span className="inline-block h-3 w-3 shrink-0 rounded-full" style={{ background: color }} />
+                      <Truck className="h-4 w-4" />
+                      {r.truckLabel || r.vehicle}
+                      <Badge variant="muted" className="font-mono-data text-[10px]">
+                        {r.matchedVehicleNo || r.vehicle}
                       </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <Badge variant="success">
+                        {r.utilizationPct ?? 0}% loaded
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      {criticalCount} critical stop{criticalCount === 1 ? "" : "s"}
+                      {onWayCount > 0 && <> + {onWayCount} picked up on the way</>} ·{" "}
+                      {fmt(r.totalDemandKg)} / {fmt(r.vehicleCapacityKg)} kg · {fmt(r.roadDistanceM ?? r.totalDistanceM)} m
+                      {r.roadDurationS ? ` · ~${Math.round(r.roadDurationS / 60)} min` : ""}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {r.stops?.map((s, si) => (
+                        <Badge
+                          key={s.binId}
+                          variant={s.tier === "opportunistic" ? "muted" : riskVariant(s.priority || 0)}
+                          className={cn("gap-1", s.tier === "opportunistic" && "border-dashed")}
+                          title={s.tier === "opportunistic" ? "Picked up on the way (not a mandatory stop)" : "Critical — mandatory stop"}
+                        >
+                          <span
+                            className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                            style={{ background: color }}
+                          >
+                            {si + 1}
+                          </span>
+                          {s.binId}
+                          {s.tier === "opportunistic" && <span className="text-[9px] opacity-70">on the way</span>}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
             {!routes.length && !busy && (
               <p className="text-sm text-muted-foreground">
                 Generate routes to see the plan.
@@ -1384,6 +1472,14 @@ export default function NagaraiCommandCenter() {
         {/* ============ BIN OPTIMIZER ============ */}
         {tab === "bins" && (
           <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Where should bins physically go? For every zone, this scores the zone center plus each nearby landmark
+              (market, restaurant...) on predicted waste, footfall, food-business density, overflow history, population,
+              and distance from existing bins — then recommends <strong>add</strong> a new bin (high demand, no bin nearby),
+              <strong> upgrade</strong> capacity (existing bin too small for demand), <strong>relocate</strong> (oversized bin
+              in a low-demand spot), or no action. This is about bin <em>placement/sizing</em>, separate from Routes & Fleet's
+              day-to-day collection planning.
+            </p>
             <Button onClick={handleOptimizeBins} disabled={!!busy}>
               {busy === "bins"
                 ? "Optimizing…"
@@ -1531,6 +1627,12 @@ export default function NagaraiCommandCenter() {
               <CardTitle>Staffing needs by zone</CardTitle>
             </CardHeader>
             <CardContent>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Resource planning, not a live schedule: for each zone, this estimates how many collectors, vehicles,
+                sweepers, and supervisors are needed to keep up with that zone's predicted daily waste (from footfall and
+                bin density) and current event multiplier — a capacity-planning number for "do we have enough people,"
+                separate from Routes & Fleet's actual truck dispatch for today.
+              </p>
               <table className="w-full">
                 <thead>
                   <tr>
@@ -1913,11 +2015,40 @@ export default function NagaraiCommandCenter() {
         {/* ============ SWEEPING ============ */}
         {tab === "sweeping" && (
           <div className="space-y-4">
-            <Button onClick={handleAnalyzeSweeping} disabled={!!busy}>
-              {busy === "sweep"
-                ? "Analyzing…"
-                : "Run Predictive Sweeping analysis"}
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Two separate steps. <strong>Analysis</strong> scores how
+              quickly each zone's roads get dirty (footfall, commercial
+              density, markets, events, weather) and recommends a sweep
+              frequency — 1x/week for a quiet residential road up to 3x
+              daily for a busy market street. <strong>Plan/Deploy</strong> is
+              the actual dispatch: it builds a sweeper route through open
+              litter incidents and high-footfall zones (a TSP tour from the
+              depot, split into ≤25km shifts) and, on Deploy, creates real
+              sweeping tasks assigned to workers with the sweeping skill.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={handleAnalyzeSweeping} disabled={!!busy}>
+                {busy === "sweep"
+                  ? "Analyzing…"
+                  : "Run Predictive Sweeping analysis"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handlePlanSweeping}
+                disabled={!!busy}
+              >
+                {busy === "sweepplan" ? "Planning…" : "Preview sweep route"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDeploySweeping}
+                disabled={!!busy}
+              >
+                {busy === "sweepdeploy"
+                  ? "Deploying…"
+                  : "Deploy sweepers → create tasks"}
+              </Button>
+            </div>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1987,6 +2118,71 @@ export default function NagaraiCommandCenter() {
                 </table>
               </CardContent>
             </Card>
+
+            {sweepPlan && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    Sweep route{" "}
+                    {sweepPlan.tasksCreated
+                      ? `— ${sweepPlan.tasksCreated} task(s) deployed`
+                      : "(preview)"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!sweepPlan.candidates ? (
+                    <p className="text-sm text-muted-foreground">
+                      No open litter incidents and no zone currently above
+                      the high-footfall threshold — nothing to sweep
+                      proactively right now.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mb-3 text-xs text-muted-foreground">
+                        {sweepPlan.candidates} stop
+                        {sweepPlan.candidates === 1 ? "" : "s"} ·{" "}
+                        {sweepPlan.totalDistanceKm} km total ·{" "}
+                        {sweepPlan.segments.length} sweeper shift
+                        {sweepPlan.segments.length === 1 ? "" : "s"}
+                      </p>
+                      <div className="space-y-3">
+                        {sweepPlan.segments.map((s, i) => (
+                          <div
+                            key={i}
+                            className="rounded-lg border border-border p-3"
+                          >
+                            <p className="mb-1 text-sm font-medium">
+                              Shift {i + 1} — {s.distanceKm} km · ~
+                              {s.estimatedHrs}h
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {s.stops.map((st, si) => (
+                                <Badge
+                                  key={si}
+                                  variant={
+                                    st.type === "incident"
+                                      ? "danger"
+                                      : "muted"
+                                  }
+                                  className="gap-1"
+                                >
+                                  {st.type === "incident" ? (
+                                    <AlertTriangle className="h-3 w-3" />
+                                  ) : (
+                                    <MapPin className="h-3 w-3" />
+                                  )}
+                                  {st.source}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
@@ -2001,8 +2197,10 @@ export default function NagaraiCommandCenter() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  Upload a frame from a fixed camera location. Detection is a
-                  heuristic stand-in for a trained model (see backend notes) —
+                  Upload a frame from a fixed camera location. Runs a
+                  YOLOv8n object-density detector via ml-service (falls back
+                  to a pixel-clutter heuristic if that service is
+                  unreachable — check "Method" below to see which one ran) —
                   it flags visual clutter and auto-creates an incident,
                   demonstrating the full closed-loop flow.
                 </p>
@@ -2089,7 +2287,20 @@ export default function NagaraiCommandCenter() {
                       <dt className="text-muted-foreground">Estimated area</dt>
                       <dd>{cctvResult.detection.estimatedAreaM2} m²</dd>
                       <dt className="text-muted-foreground">Method</dt>
-                      <dd className="text-xs">{cctvResult.detection.method}</dd>
+                      <dd>
+                        <Badge
+                          variant={
+                            cctvResult.detection.method?.startsWith("yolo")
+                              ? "success"
+                              : "muted"
+                          }
+                          className="text-xs"
+                        >
+                          {cctvResult.detection.method?.startsWith("yolo")
+                            ? "YOLOv8n (live)"
+                            : "Heuristic (fallback)"}
+                        </Badge>
+                      </dd>
                     </dl>
                     {cctvResult.incident && (
                       <div className="rounded-lg bg-muted p-3 text-sm">

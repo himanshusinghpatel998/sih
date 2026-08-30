@@ -1,6 +1,7 @@
 const { Bin, Zone, Landmark, BinRecommendation } = require('../models');
 const { evaluateLocation } = require('../services/binOptimizer');
 const { haversineM } = require('../services/geo');
+const mlServiceClient = require('../services/mlServiceClient');
 
 const buildZoneContext = (zone, landmarks) => {
   const near = landmarks.filter((l) => String(l.zone) === String(zone._id));
@@ -67,33 +68,27 @@ const optimizeBins = async (req, res) => {
           existingBin,
         });
 
-        results.push({ ...evalResult, label: cand.label });
+        results.push({ ...evalResult, label: cand.label, zoneId: zone._id });
       }
     }
 
     // Persist recommendations (clear previous run first for idempotency)
     await BinRecommendation.deleteMany({});
-    const docs = results
-      .filter((r) => r.action !== 'no_action')
-      .map((r) => ({
-        zone: r.zone ? r.zone : null,
-        location: r.location,
-        action: r.action,
-        existingBin: r.existingBinId ? null : null, // id referenced below if needed
-        recommendedCapacityL: r.recommendedCapacityL,
-        predictedDemandLDay: r.predictedLDay,
-        currentCoverage: r.coverage,
-        reason: r.reason,
-        priority: r.priority,
-      }));
-    // Attach existingBin id where applicable
-    for (let i = 0; i < docs.length; i++) {
-      const src = results.filter((r) => r.action !== 'no_action')[i];
-      if (src && src.existingBinId) {
-        const bin = bins.find((b) => b.binId === src.existingBinId);
-        docs[i].existingBin = bin ? bin._id : null;
-      }
-    }
+    const actionable = results.filter((r) => r.action !== 'no_action');
+    const docs = actionable.map((r) => ({
+      // r.zone is {code,name} (evaluateLocation's own return shape) — not a
+      // real reference. r.zoneId (attached above, from the zones loop) is
+      // the actual Zone _id, which is what .populate('zone') needs to work.
+      zone: r.zoneId || null,
+      location: r.location,
+      action: r.action,
+      existingBin: r.existingBinId ? bins.find((b) => b.binId === r.existingBinId)?._id || null : null,
+      recommendedCapacityL: r.recommendedCapacityL,
+      predictedDemandLDay: r.predictedLDay,
+      currentCoverage: r.coverage,
+      reason: r.reason,
+      priority: r.priority,
+    }));
     if (docs.length) await BinRecommendation.insertMany(docs);
 
     // Sort: no_action last
@@ -129,4 +124,36 @@ const listBins = async (req, res) => {
   }
 };
 
-module.exports = { optimizeBins, getRecommendations, listBins };
+// @desc  Bin action recommendations (UPGRADE/ADD_BIN_NEARBY/RELOCATE/REMOVE/KEEP)
+//        from the demand-score + recommendation engine in ml/routing/*
+//        (distinct from optimizeBins' own JS placement-candidate engine above —
+//        this scores existing bins by demand/overflow/festival-sensitivity).
+// @route GET /api/bins/ml-recommendations
+const getMlRecommendations = async (req, res) => {
+  try {
+    const [bins, zones] = await Promise.all([Bin.find().lean(), Zone.find().lean()]);
+    const zonesById = {};
+    for (const z of zones) zonesById[String(z._id)] = z;
+
+    const mlBins = bins.map((b) => {
+      const zone = b.zone ? zonesById[String(b.zone)] : null;
+      return {
+        bin_id: b.binId,
+        zone_type: zone ? (zone.commercialDensity > 0.6 ? 'commercial' : zone.residentialDensity > 0.6 ? 'residential_high' : 'mixed_use') : 'residential_low',
+        bin_capacity_liters: b.capacityL || 240,
+        avg_fill_pct: b.currentLevel != null ? b.currentLevel : 50,
+        overflow_rate: b.overflowCount ? Math.min(1, b.overflowCount / 20) : 0,
+        latitude: b.location ? b.location.lat : null,
+        longitude: b.location ? b.location.lng : null,
+      };
+    });
+
+    const result = await mlServiceClient.getBinRecommendations(mlBins);
+    res.json(result);
+  } catch (err) {
+    console.error('❌ [BINS] ml-recommendations error:', err.message);
+    res.status(502).json({ message: 'ml-service recommendations unavailable (is ml-service running?)', error: err.message });
+  }
+};
+
+module.exports = { optimizeBins, getRecommendations, listBins, getMlRecommendations };

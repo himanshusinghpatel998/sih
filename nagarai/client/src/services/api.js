@@ -121,6 +121,7 @@ export const getBinRecommendations = () => API.get('/bins/recommendations');
 // Routes (CVRP)
 export const generateRoutes = (data = {}) => API.post('/routes/generate', data);
 export const deployRoutes = (data = {}) => API.post('/routes/deploy', data);
+export const advanceDay = (data = {}) => API.post('/routes/advance-day', data);
 export const getWorkforce = (params) => API.get('/routes/workforce', { params });
 
 // Incidents (closed loop)
@@ -137,6 +138,8 @@ export const getMLStatus = () => API.get('/ml/status');
 // Sweeping (predictive dirt-score engine)
 export const analyzeSweeping = (data = {}) => API.post('/sweeping/analyze', data);
 export const getSweepingNeeds = () => API.get('/sweeping/needs');
+export const getSweepingPlan = (data = {}) => API.post('/sweeping/plan', data);
+export const deploySweeping = (data = {}) => API.post('/sweeping/deploy', data);
 
 // CCTV (heuristic detection MVP)
 export const detectCctvFrame = (formData) =>

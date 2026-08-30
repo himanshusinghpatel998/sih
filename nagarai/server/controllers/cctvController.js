@@ -1,26 +1,46 @@
 /**
- * CCTV Waste Detection — hackathon-scoped MVP.
+ * CCTV Waste Detection.
  *
- * Real live-camera + trained object-detection (YOLO-style) is out of scope
- * for this build (no camera feed, no labeled training data). This endpoint
- * implements the full *flow* the PRD describes — frame in, detection out,
- * incident auto-created, worker task dispatched — using an explicit image
- * heuristic (pixel-variance/clutter proxy) instead of a trained model, so the
- * closed-loop demo (upload/simulate a frame  AI flags it  incident 
- * worker task) works end-to-end. Swapping in a real detector later only
- * means replacing `analyzeFrame()` below — the incident/task pipeline is
- * unaffected.
+ * A frame goes to the ml-service's YOLOv8n object-density detector
+ * (analyzeFrameWithYolo) — no labeled "garbage pile" dataset exists in this
+ * repo, so it's not a trained waste classifier, it's non-person/non-vehicle
+ * object clutter density used as a detection signal (see ml-service/detector.py).
+ * If ml-service is unreachable, analyzeFrame() falls back to the original
+ * pixel-variance heuristic (analyzeFrameHeuristic) so the closed-loop demo
+ * (frame in → incident → worker task) never hard-depends on the Python service.
  */
 const sharp = require('sharp');
 const { WasteIncident, CollectionTask, User, Zone } = require('../models');
 const { uploadToCloudinary } = require('../middleware/upload');
 const { createNotification } = require('./notificationController');
 const { incidentPriority, findDuplicate } = require('./incidentController');
+const mlServiceClient = require('../services/mlServiceClient');
 
-// Heuristic "is there a garbage pile in this frame" scorer.
+// Real detector — maps YOLO's objectCount/coverageRatio onto the same
+// {garbageDetected, confidence, severity, estimatedAreaM2, method} shape
+// analyzeFrameHeuristic already produces, so the incident/task pipeline
+// downstream (incidentPriority, findDuplicate, task creation) is unaffected.
+const analyzeFrameWithYolo = async (buffer) => {
+  const result = await mlServiceClient.detectFrame(buffer);
+  const { objectCount = 0, avgConfidence = 0, coverageRatio = 0, method } = result;
+  const garbageDetected = coverageRatio > 0.06 || objectCount >= 4;
+  const severity = coverageRatio > 0.22 ? 'high' : coverageRatio > 0.12 ? 'medium' : 'low';
+  const estimatedAreaM2 = garbageDetected ? Math.round((5 + coverageRatio * 150) * 10) / 10 : 0;
+  return {
+    garbageDetected,
+    confidence: Math.round((avgConfidence || Math.min(1, coverageRatio * 2)) * 100) / 100,
+    severity,
+    estimatedAreaM2,
+    method: method || 'yolov8n-coco-density-v1',
+    objectCount,
+    coverageRatio,
+  };
+};
+
+// Heuristic "is there a garbage pile in this frame" scorer — fallback only.
 // Real garbage piles/overflow tend to be visually high-variance, low-saturation-uniformity
 // clutter compared to a clean street/pavement. This is a stand-in, not a trained classifier.
-const analyzeFrame = async (buffer) => {
+const analyzeFrameHeuristic = async (buffer) => {
   const stats = await sharp(buffer).stats();
   const channelStdDevs = stats.channels.map((c) => c.stdev);
   const avgStdDev = channelStdDevs.reduce((a, b) => a + b, 0) / channelStdDevs.length;
@@ -37,6 +57,16 @@ const analyzeFrame = async (buffer) => {
     estimatedAreaM2,
     method: 'heuristic-image-variance-v1',
   };
+};
+
+// What detectFromImage() actually calls: real detector, heuristic fallback.
+const analyzeFrame = async (buffer) => {
+  try {
+    return await analyzeFrameWithYolo(buffer);
+  } catch (err) {
+    console.warn('⚠️ [CCTV] ml-service detector unavailable, falling back to heuristic:', err.message);
+    return analyzeFrameHeuristic(buffer);
+  }
 };
 
 // @desc  Analyze an uploaded/simulated CCTV frame; auto-create an incident if flagged
@@ -116,4 +146,4 @@ const detectFromImage = async (req, res) => {
   }
 };
 
-module.exports = { detectFromImage, analyzeFrame };
+module.exports = { detectFromImage, analyzeFrame, analyzeFrameWithYolo, analyzeFrameHeuristic };

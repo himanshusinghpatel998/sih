@@ -25,7 +25,9 @@ const {
   WasteIncident,
 } = require('./models');
 
-const MOCK_CITY = { name: 'NagarCity', center: { lat: 19.076, lng: 72.8777 } };
+// Matches the real bin dataset's city (ml/bins_master.csv, imported by
+// scripts/importRealBins.js) — Mangaluru, not the old Mumbai placeholder.
+const MOCK_CITY = { name: 'NagarCity', center: { lat: 12.8745, lng: 74.84 } };
 
 // ---- Zones (with densities/footfall) ----
 const ZONES = [
@@ -69,13 +71,15 @@ const BINS_BY_ZONE = {
   Z6: [240, 240],
 };
 
+// Spans all five payload tiers (services/truckFleet.js) so a mock reseed can
+// exercise real truck-sizing (small load -> mini-truck, big load -> heavy-duty).
 const VEHICLES = [
-  { no: 'V-101', type: 'truck', capacityKg: 5000 },
-  { no: 'V-102', type: 'compactor', capacityKg: 8000 },
-  { no: 'V-103', type: 'mini-truck', capacityKg: 2000 },
-  { no: 'V-104', type: 'truck', capacityKg: 5000 },
-  { no: 'V-105', type: 'electric', capacityKg: 1500 },
-  { no: 'V-106', type: 'three-wheeler', capacityKg: 800 },
+  { no: 'V-101', type: 'mini-truck', capacityKg: 3000 },
+  { no: 'V-102', type: 'compactor-small', capacityKg: 6000 },
+  { no: 'V-103', type: 'compactor-standard', capacityKg: 10000 },
+  { no: 'V-104', type: 'compactor-standard', capacityKg: 10000 },
+  { no: 'V-105', type: 'compactor-large', capacityKg: 15000 },
+  { no: 'V-106', type: 'heavy-duty', capacityKg: 20000 },
 ];
 
 const WORKERS = [
@@ -185,7 +189,7 @@ const seed = async () => {
       vehicleNo: v.no,
       type: v.type,
       capacityKg: v.capacityKg,
-      fuelConsumptionKm: v.type === 'electric' ? 0 : 4,
+      fuelConsumptionKm: 4,
       status: 'available',
       location: { lat: MOCK_CITY.center.lat, lng: MOCK_CITY.center.lng },
     });
@@ -208,7 +212,7 @@ const seed = async () => {
 
   // ---- Disposal facility ----
   const disposal = await DisposalFacility.create({
-    name: 'NagarCity Dumping Ground',
+    name: 'Pachanady Waste Processing Facility',
     type: 'dumping_ground',
     location: { lat: MOCK_CITY.center.lat + 0.03, lng: MOCK_CITY.center.lng + 0.03 },
     capacityKg: 1000000,

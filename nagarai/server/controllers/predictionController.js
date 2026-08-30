@@ -1,11 +1,12 @@
 const { Bin, Zone, Event, Landmark, WastePrediction, WasteIncident } = require('../models');
 const { predictBin, predictAllBins } = require('../services/predictionEngine');
 const mlServiceClient = require('../services/mlServiceClient');
+const { backfillPredictionOutcomes, predictionAccuracy } = require('../services/predictionFeedback');
 
 // Convert the ml-service's response shape into the same shape predictBin()
 // (rule engine) produces, so downstream persistence/consumers don't care
 // which strategy generated a given bin's prediction.
-const realModelToEngineShape = (bin, real) => {
+const realModelToEngineShape = (bin, real, zone) => {
   const capacityL = bin.capacityL || 240;
   const toKg = (pct) => (pct / 100) * capacityL;
   const horizons = {};
@@ -14,16 +15,20 @@ const realModelToEngineShape = (bin, real) => {
   }
   // Extend the model's native horizons (1h/6h/12h/24h) with 48h/7d so the
   // shape matches the rule engine's HORIZONS_HOURS — derived by continuing
-  // the same next-day slope, clamped to 100%.
+  // the same next-day slope, clamped to [0, 100] (a declining slope — e.g.
+  // the model predicting a post-collection drop — extrapolated forward can
+  // otherwise go negative, which isn't a meaningful fill percentage).
+  const clampPct = (v) => Math.max(0, Math.min(100, Math.round(v * 100) / 100));
   const dailyDelta = real.fillPctNextDay - real.currentFillPct;
-  horizons['48h'] = { predictedFillPct: Math.min(100, Math.round((real.fillPctNextDay + dailyDelta) * 100) / 100) };
+  horizons['48h'] = { predictedFillPct: clampPct(real.fillPctNextDay + dailyDelta) };
   horizons['48h'].predictedKg = Math.round(toKg(horizons['48h'].predictedFillPct) * 100) / 100;
-  horizons['7d'] = { predictedFillPct: Math.min(100, Math.round((real.fillPctNextDay + dailyDelta * 6) * 100) / 100) };
+  horizons['7d'] = { predictedFillPct: clampPct(real.fillPctNextDay + dailyDelta * 6) };
   horizons['7d'].predictedKg = Math.round(toKg(horizons['7d'].predictedFillPct) * 100) / 100;
 
   const riskScore = Math.round(real.overflowRisk * 100);
   return {
     binId: real.binId,
+    zone: zone ? zone.code : null,
     currentLevel: real.currentFillPct,
     predictions: horizons,
     overflowAt: null,
@@ -98,10 +103,10 @@ const runPredictions = async (req, res) => {
         for (const r of realPredictions) if (!r.error) byBinId[r.binId] = r;
 
         results = bins.map((bin) => {
-          const real = byBinId[bin.binId];
-          if (real) return realModelToEngineShape(bin, real);
-          // No trained-model coverage for this bin (not in the ml/ dataset) — fall back per-bin
           const zone = bin.zone ? zonesById[String(bin.zone)] : null;
+          const real = byBinId[bin.binId];
+          if (real) return realModelToEngineShape(bin, real, zone);
+          // No trained-model coverage for this bin (not in the ml/ dataset) — fall back per-bin
           const event = activeEventForZone(eventsByZone, zone, new Date());
           return predictBin(bin, zone, { weather, eventType: event ? event.type : null });
         });
@@ -173,4 +178,26 @@ const getPredictions = async (req, res) => {
   }
 };
 
-module.exports = { runPredictions, getPredictions, predictBin, loadZoneContext };
+// @desc  Backfill actual-vs-predicted outcomes for predictions whose horizon has passed
+// @route POST /api/predictions/backfill-outcomes
+const backfillOutcomes = async (req, res) => {
+  try {
+    const result = await backfillPredictionOutcomes();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// @desc  Prediction accuracy (MAE / accuracy %) grouped by model version + horizon
+// @route GET /api/predictions/accuracy
+const getAccuracy = async (req, res) => {
+  try {
+    const result = await predictionAccuracy();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+module.exports = { runPredictions, getPredictions, predictBin, loadZoneContext, backfillOutcomes, getAccuracy };
