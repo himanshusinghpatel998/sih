@@ -38,7 +38,7 @@ citizen complains.
 **Citizen**
 - File complaints with photo proof + AI quick-scan
 - Track complaint status with a live timeline
-- Earn reward points, redeem in the eco store
+- Earn reward points that can be redeemed in the eco store
 
 **Collector**
 - Live dashboard of assigned block complaints & IoT bin alerts
