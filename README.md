@@ -1,6 +1,6 @@
 # NagarAI — Predictive Municipal Waste & Sanitation Intelligence
 
-**Demo Video : ** (Drive Link for SIH Internal Hackathon Demo)[https://drive.google.com/drive/folders/1G6ApeS_vt23JStBK_m9vcRFCjK-10IxH?usp=sharing]
+**Demo Video:** [Drive Link for SIH Internal Hackathon Demo](https://drive.google.com/drive/folders/1G6ApeS_vt23JStBK_m9vcRFCjK-10IxH?usp=sharing)
 
 ## Problem Statement
 Municipal waste management today is **reactive**: bins overflow before anyone
