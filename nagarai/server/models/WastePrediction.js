@@ -24,6 +24,10 @@ const wastePredictionSchema = new mongoose.Schema(
     overflowAt: { type: Date, default: null }, // predicted time bin reaches 100%
     contributors: [String], // factors that drove the prediction
     modelVersion: { type: String, default: 'rule-seasonal-v1' },
+    // Phase H — feedback loop: backfilled once the forecast horizon passes.
+    actualFillPct: { type: Number, min: 0, max: 100, default: null },
+    actualRecordedAt: { type: Date, default: null },
+    error: { type: Number, default: null }, // actualFillPct - predictedFillPct
   },
   { timestamps: true }
 );

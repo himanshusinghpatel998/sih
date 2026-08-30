@@ -38,4 +38,72 @@ const predictBatch = async (overrides = {}) => {
   return data.predictions;
 };
 
-module.exports = { isHealthy, predictBin, predictBatch, ML_SERVICE_URL };
+// CCTV frame → YOLOv8n object-density detection (Phase F).
+const detectFrame = async (buffer, filename = 'frame.jpg') => {
+  const FormData = require('form-data');
+  const fd = new FormData();
+  fd.append('file', buffer, { filename, contentType: 'image/jpeg' });
+  const { data } = await client.post('/detect/frame', fd, {
+    headers: fd.getHeaders(),
+    timeout: TIMEOUT_MS,
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+  });
+  return data;
+};
+
+// ─── Routing (wraps ml/routing/* via ml-service) ──────────────────────────
+
+const getDemandScores = async (bins) => {
+  const { data } = await client.post('/routes/demand-scores', { bins });
+  return data.scores;
+};
+
+const optimizeRoutes = async (bins, fleet) => {
+  const { data } = await client.post('/routes/optimize', { bins, fleet });
+  return data;
+};
+
+const getBinRecommendations = async (bins) => {
+  const { data } = await client.post('/routes/recommendations', { bins });
+  return data;
+};
+
+const assignWorkers = async (routesResult, workers) => {
+  const { data } = await client.post('/routes/assign-workers', { routes: routesResult, workers });
+  return data;
+};
+
+const rerouteInsertBin = async (routesResult, bins, binId, scores, currentLocation) => {
+  const { data } = await client.post('/routes/reroute/insert-bin', {
+    routes: routesResult, bins, binId, scores, currentLocation,
+  });
+  return data;
+};
+
+const rerouteBreakdown = async (routesResult, bins, vehicleId) => {
+  const { data } = await client.post('/routes/reroute/breakdown', { routes: routesResult, bins, vehicleId });
+  return data;
+};
+
+const rerouteTraffic = async (routesResult, bins, vehicleId, delayMinutes, affectedStops) => {
+  const { data } = await client.post('/routes/reroute/traffic', {
+    routes: routesResult, bins, vehicleId, delayMinutes, affectedStops,
+  });
+  return data;
+};
+
+module.exports = {
+  isHealthy,
+  predictBin,
+  predictBatch,
+  detectFrame,
+  getDemandScores,
+  optimizeRoutes,
+  getBinRecommendations,
+  assignWorkers,
+  rerouteInsertBin,
+  rerouteBreakdown,
+  rerouteTraffic,
+  ML_SERVICE_URL,
+};

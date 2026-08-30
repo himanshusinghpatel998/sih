@@ -1,7 +1,9 @@
 const mongoose = require('../config/miniMongoose');
+const axios = require('axios');
 const { WasteIncident, CollectionTask, User, Bin, Zone, Event } = require('../models');
 const { uploadToCloudinary } = require('../middleware/upload');
 const { createNotification } = require('./notificationController');
+const mlServiceClient = require('../services/mlServiceClient');
 
 // Priority from incident type + extent + recent overflow history
 const incidentPriority = ({ type = 'other', extentKg = null, binOverflow = false }) => {
@@ -26,9 +28,11 @@ const findDuplicate = async (incident) => {
   const { location, type } = incident;
   if (!location || location.lat == null) return null;
   const { haversineM } = require('../services/geo');
+  // Not .lean() — callers (createIncident, cctvController.detectFromImage)
+  // call .save() on the returned doc to bump duplicateCount.
   const open = await WasteIncident.find({
     status: { $in: ['open', 'assigned', 'in-progress'] },
-  }).lean();
+  });
   for (const o of open) {
     if (!o.location || o.location.lat == null) continue;
     const d = haversineM(
@@ -193,10 +197,37 @@ const completeIncident = async (req, res) => {
       catch (e) { return res.status(500).json({ message: 'Proof upload failed', error: e.message }); }
     }
 
-    // Deterministic placeholder "AI verification" score from available signals
-    // (swap with real CV model later)
+    // Signal-based fallback score (used when a real before/after comparison
+    // isn't possible — no before image, or ml-service unreachable).
     const signals = { hasLegacyReport: incident.duplicateCount > 1, hasImage: !!completionImage, resolved: true };
-    const verificationScore = Math.round(40 + (signals.hasImage ? 35 : 10) + signals.hasLegacyReport * 15);
+    let verificationScore = Math.round(40 + (signals.hasImage ? 35 : 10) + signals.hasLegacyReport * 15);
+    let verificationMethod = 'signal-heuristic-v1';
+
+    // Real verification: run the YOLO detector on the before (incident.image)
+    // and after (completionImage) photos, score by the drop in detected
+    // clutter coverage. Fully replaces the fallback score when it succeeds —
+    // blending it in as a floor would hide exactly the case this exists to
+    // catch (a completion photo that doesn't actually show a cleanup).
+    if (completionImage && incident.image && req.file) {
+      try {
+        const beforeBuffer = Buffer.from(
+          (await axios.get(incident.image, { responseType: 'arraybuffer' })).data
+        );
+        const [before, after] = await Promise.all([
+          mlServiceClient.detectFrame(beforeBuffer, 'before.jpg'),
+          mlServiceClient.detectFrame(req.file.buffer, 'after.jpg'),
+        ]);
+        const beforeCoverage = before.coverageRatio || 0;
+        const afterCoverage = after.coverageRatio || 0;
+        const improvement = beforeCoverage > 0.001
+          ? (beforeCoverage - afterCoverage) / beforeCoverage
+          : (afterCoverage <= 0.02 ? 1 : 0);
+        verificationScore = Math.round(Math.max(0, Math.min(1, improvement)) * 100);
+        verificationMethod = 'yolov8n-before-after-v1';
+      } catch (e) {
+        console.warn('⚠️ [INCIDENT] photo verification detector unavailable, using signal heuristic:', e.message);
+      }
+    }
 
     incident.status = 'resolved';
     incident.completionImage = completionImage;
@@ -215,7 +246,7 @@ const completeIncident = async (req, res) => {
       await createNotification(incident.reporter, `✅ Your incident ${incident.incidentId} is resolved (verified ${verificationScore}/100)`, 'incident').catch(() => {});
     }
 
-    res.json({ incident, verificationScore });
+    res.json({ incident, verificationScore, verificationMethod });
   } catch (err) {
     console.error('❌ [INCIDENT] complete error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });

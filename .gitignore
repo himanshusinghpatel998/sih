@@ -13,3 +13,5 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+*.pt
+ml-service/weights/
