@@ -44,7 +44,7 @@ const analyzeSweepingNeeds = async (req, res) => {
 
     res.json({ count: docs.length, needs: docs });
   } catch (err) {
-    console.error('❌ [SWEEPING] analyze error:', err.message);
+    console.error(' [SWEEPING] analyze error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -67,7 +67,7 @@ const getSweepingPlan = async (req, res) => {
     const plan = await generateSweepingPlan({ createTasks: false });
     res.json(plan);
   } catch (err) {
-    console.error('❌ [SWEEPING] plan error:', err.message);
+    console.error(' [SWEEPING] plan error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -79,7 +79,7 @@ const deploySweeping = async (req, res) => {
     const plan = await generateSweepingPlan({ createTasks: true });
     res.json(plan);
   } catch (err) {
-    console.error('❌ [SWEEPING] deploy error:', err.message);
+    console.error(' [SWEEPING] deploy error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

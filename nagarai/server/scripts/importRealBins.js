@@ -64,7 +64,7 @@ const run = async () => {
     );
     zonesByCode[z.code] = doc;
   }
-  console.log(`✅ Upserted ${uniqueZones.size} zones`);
+  console.log(` Upserted ${uniqueZones.size} zones`);
 
   // --- Bins ----------------------------------------------------------------
   let count = 0;
@@ -87,13 +87,13 @@ const run = async () => {
     );
     count += 1;
   }
-  console.log(`✅ Upserted ${count} real bins (matching the trained model's bin universe)`);
+  console.log(` Upserted ${count} real bins (matching the trained model's bin universe)`);
 
   await mongoose.disconnect();
   console.log('Done.');
 };
 
 run().catch((err) => {
-  console.error('❌ importRealBins failed:', err);
+  console.error(' importRealBins failed:', err);
   process.exit(1);
 });

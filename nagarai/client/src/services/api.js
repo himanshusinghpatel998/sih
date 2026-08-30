@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// ✅ Use Vite environment variable
+//  Use Vite environment variable
 const baseURL = import.meta.env.VITE_API_URL 
   ? `${import.meta.env.VITE_API_URL}/api` 
   : '/api';
@@ -9,7 +9,7 @@ const API = axios.create({
   baseURL,
 });
 
-// ✅ Attach token to every request
+//  Attach token to every request
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('wms_token');
   if (token) {

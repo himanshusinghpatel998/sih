@@ -8,7 +8,7 @@ const { createNotification } = require('./notificationController');
 // @access  Public (no authentication required — ESP32 devices send data directly)
 const processIotData = async (req, res) => {
   try {
-    console.log("📡 [IOT] BODY:", req.body);
+    console.log(" [IOT] BODY:", req.body);
     const { block, level, binId } = req.body;
 
     // 1. Validate required fields
@@ -20,7 +20,7 @@ const processIotData = async (req, res) => {
     const binLabel = binId || 'UNKNOWN';
     const numericLevel = Number(level);
 
-    console.log(`📡 [IOT] Data received | Block: ${normalizedBlock} | Bin: ${binLabel} | Level: ${numericLevel}%`);
+    console.log(` [IOT] Data received | Block: ${normalizedBlock} | Bin: ${binLabel} | Level: ${numericLevel}%`);
 
     // 2. Always save raw sensor reading to BinData
     await BinData.create({
@@ -28,7 +28,7 @@ const processIotData = async (req, res) => {
       block: normalizedBlock,
       level: numericLevel,
     });
-    console.log(`💾 [IOT] Sensor reading saved: ${binLabel} → ${numericLevel}%`);
+    console.log(` [IOT] Sensor reading saved: ${binLabel}  ${numericLevel}%`);
 
     // 3. Threshold Check — only create alert if level >= 80
     if (numericLevel < 80) {
@@ -53,7 +53,7 @@ const processIotData = async (req, res) => {
     const existing = await Complaint.findOne(dupeQuery);
 
     if (existing) {
-      console.log(`⚠️ [IOT] Active alert already exists for Block ${normalizedBlock} Bin ${binLabel} (${existing.complaintId})`);
+      console.log(` [IOT] Active alert already exists for Block ${normalizedBlock} Bin ${binLabel} (${existing.complaintId})`);
       return res.json({ message: 'Alert already active', complaintId: existing.complaintId });
     }
 
@@ -77,7 +77,7 @@ const processIotData = async (req, res) => {
       user: adminUser._id, // Required ObjectId — system-owned complaint
       location: `Block ${normalizedBlock} - Smart Dustbin ${binLabel}`,
       wasteType: 'Mixed Waste',
-      description: `🚨 AUTOMATED IoT ALERT: Dustbin "${binLabel}" in Block ${normalizedBlock} is ${numericLevel}% FULL. Immediate collection required.`,
+      description: ` AUTOMATED IoT ALERT: Dustbin "${binLabel}" in Block ${normalizedBlock} is ${numericLevel}% FULL. Immediate collection required.`,
       block: normalizedBlock,
       status: 'pending',
       type: 'iot',
@@ -95,26 +95,26 @@ const processIotData = async (req, res) => {
       ]
     });
 
-    // ✅ Notify Assigned Collector
+    //  Notify Assigned Collector
     if (collector) {
       await createNotification(
         collector._id,
-        `🚨 New IoT Alert! Bin ${binLabel} in your block (${normalizedBlock}) is full!`,
+        ` New IoT Alert! Bin ${binLabel} in your block (${normalizedBlock}) is full!`,
         'iot'
       );
     }
 
-    // ✅ Notify Admins
+    //  Notify Admins
     const admins = await User.find({ role: 'admin' });
     for (const admin of admins) {
       await createNotification(
         admin._id,
-        `🚨 IoT Alert: Bin ${binLabel} (Block ${normalizedBlock}) reached ${numericLevel}%!`,
+        ` IoT Alert: Bin ${binLabel} (Block ${normalizedBlock}) reached ${numericLevel}%!`,
         'iot'
       );
     }
 
-    console.log(`🚨 [IOT] Auto-complaint created: ${complaintId} | Bin: ${binLabel} | Assigned to: ${collector ? collector._id : 'NONE'}`);
+    console.log(` [IOT] Auto-complaint created: ${complaintId} | Bin: ${binLabel} | Assigned to: ${collector ? collector._id : 'NONE'}`);
 
     res.status(201).json({
       message: 'Complaint created successfully',
@@ -126,7 +126,7 @@ const processIotData = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('❌ [IOT] Error:', err.message);
+    console.error(' [IOT] Error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -151,10 +151,10 @@ const getIotData = async (req, res) => {
       { $sort: { block: 1, binId: 1 } }
     ]);
 
-    console.log(`📡 [IOT] GET /data → returning ${latestBins.length} bin(s)`);
+    console.log(` [IOT] GET /data  returning ${latestBins.length} bin(s)`);
     res.json(latestBins);
   } catch (err) {
-    console.error('❌ [IOT] GET Error:', err.message);
+    console.error(' [IOT] GET Error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

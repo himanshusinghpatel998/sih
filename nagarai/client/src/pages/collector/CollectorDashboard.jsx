@@ -157,7 +157,7 @@ export default function CollectorDashboard() {
         const body = { status: modalStatus, note: `Status updated to ${modalStatus}` };
         if (modalStatus === 'rejected') body.rejectionReason = rejectionReason.trim();
         const res = await updateComplaintStatus(activeId, body);
-        toast.success(`Complaint ${activeId} → "${modalStatus}"`);
+        toast.success(`Complaint ${activeId}  "${modalStatus}"`);
         if (modalStatus === 'completed' && res.data.rewardGiven) toast('You earned 10 reward points!');
       }
       setModalOpen(false); setRejectionReason(''); setCompletionFile(null); setCompletionPreview(null);
@@ -182,7 +182,7 @@ export default function CollectorDashboard() {
       if (newStatus === 'delivered') {
         setIsSuccess(true); toast.success('Order delivered');
         if (res.data.rewardGiven) setTimeout(() => toast('Delivery bonus: +20 reward points!'), 1200);
-      } else toast.success(`Order ${orderId} → ${newStatus}`);
+      } else toast.success(`Order ${orderId}  ${newStatus}`);
       setVerificationCode(''); loadStoreOrders(); loadProfile();
       setOrderCache((prev) => ({ ...prev, [orderId]: res.data })); setSelectedOrder(res.data);
     } catch (err) { toast.error(err.response?.data?.message || 'Error updating order'); }

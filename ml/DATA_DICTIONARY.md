@@ -13,7 +13,7 @@ This models the exact system described in the project brief: predicting bin-leve
 ```
 fill_level(t) = fill_level(t-1) + inflow(t)              [inflow driven by causal factors]
 if scheduled_day OR fill% ≥ 85% (prob.) OR overflowing (prob.):
-    truck empties bin → fill_level resets to a small residual
+    truck empties bin  fill_level resets to a small residual
 ```
 
 Because the state (`fill_level`) genuinely carries over from one day to the next, and collection genuinely resets it, the relationships in the table are *emergent*, not hard-coded per row — e.g. a bin's fill percentage today mechanically depends on how full it was yesterday and whether it got emptied, exactly like a real IoT-monitored bin.
@@ -21,11 +21,11 @@ Because the state (`fill_level`) genuinely carries over from one day to the next
 Twelve zones are modelled on real Mangaluru (coastal Karnataka) neighbourhood archetypes — market, commercial, mixed-use, residential (high/low density), institutional (near NITK Surathkal), tourist (Panambur beach), and industrial — because zone type is the single strongest driver of waste-generation rate in real municipal data, and a mono-zone dataset would make the ML task trivially easy.
 
 **Causal drivers built into the simulation** (matching the brief's requested features):
-- **Zone type & bin capacity tier** → baseline inflow rate (market bins fill ~3× faster than low-density residential bins — verified above).
-- **Day of week** → weekend multiplier that differs by zone type (commercial/market/tourist spike on weekends; institutional zones *drop* on weekends).
-- **Weekly local market day ("santhe")** → 1.5× multiplier on that zone's designated weekday.
-- **Holidays** (fixed real dates: Republic Day, Independence Day, Gandhi Jayanti, Christmas, etc.) and **festivals** (approximate real dates for Ugadi, Eid, Ganesh Chaturthi, Navratri/Dasara, Diwali, Karavali Utsav across 2023–2025) → 1.5–3.5× multipliers.
-- **Rare major events** (concerts/sports/rallies, 4–10 per zone over 2 years) → 2.5–3.5× spike, matching the brief's "major event = 3.0×" idea.
+- **Zone type & bin capacity tier**  baseline inflow rate (market bins fill ~3× faster than low-density residential bins — verified above).
+- **Day of week**  weekend multiplier that differs by zone type (commercial/market/tourist spike on weekends; institutional zones *drop* on weekends).
+- **Weekly local market day ("santhe")**  1.5× multiplier on that zone's designated weekday.
+- **Holidays** (fixed real dates: Republic Day, Independence Day, Gandhi Jayanti, Christmas, etc.) and **festivals** (approximate real dates for Ugadi, Eid, Ganesh Chaturthi, Navratri/Dasara, Diwali, Karavali Utsav across 2023–2025)  1.5–3.5× multipliers.
+- **Rare major events** (concerts/sports/rallies, 4–10 per zone over 2 years)  2.5–3.5× spike, matching the brief's "major event = 3.0×" idea.
 - **Monsoon-realistic weather**: rainfall is near-zero outside June–November and heavy (gamma-distributed, up to 100s of mm) in the June–September monsoon; temperature and humidity follow a coastal seasonal curve. Rain *suppresses* footfall/waste for outdoor-exposed zone types (market, tourist) more than indoor ones (residential).
 - **Footfall** is simulated per bin (correlation with waste generation ≈ 0.47 — meaningfully related but not deterministic, as in reality).
 - **Multiplicative noise** (~16% SD, log-normal-like) on every day's inflow, so no two otherwise-identical days produce identical numbers.
@@ -95,9 +95,9 @@ Targets are `NaN` only on each bin's final day in the dataset (154 rows, i.e. 0.
 
 Because this is **time-series, bin-level data**, use a **chronological split per bin**, not a random row split (random splitting would leak tomorrow's fill level into training via lag features and inflate accuracy):
 
-- **Train:** 2023-06-01 → 2024-11-30 (~18 months, ~70%)
-- **Validation:** 2024-12-01 → 2025-02-28 (~15%)
-- **Test:** 2025-03-01 → 2025-05-31 (~15%)
+- **Train:** 2023-06-01  2024-11-30 (~18 months, ~70%)
+- **Validation:** 2024-12-01  2025-02-28 (~15%)
+- **Test:** 2025-03-01  2025-05-31 (~15%)
 
 Alternatively, for a quick hackathon demo, an 80/10/10 chronological split by date works fine — just never shuffle rows across the boundary before splitting.
 

@@ -30,19 +30,19 @@ const login = async (req, res) => {
     const user = await User.findOne({ email: email.trim().toLowerCase() });
 
     if (!user) {
-      console.log(`❌ [LOGIN]: User not found: ${email}`);
+      console.log(` [LOGIN]: User not found: ${email}`);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      console.log(`❌ [LOGIN]: Password mismatch for ${email}`);
+      console.log(` [LOGIN]: Password mismatch for ${email}`);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Role mismatch check
     if (role && user.role !== role) {
-      console.log(`❌ [LOGIN]: Role mismatch for ${email}. Expected ${role}, got ${user.role}`);
+      console.log(` [LOGIN]: Role mismatch for ${email}. Expected ${role}, got ${user.role}`);
       return res.status(401).json({
         message: `This account is not a ${role} account. Please select the correct role.`,
       });
@@ -93,16 +93,16 @@ const register = async (req, res) => {
       date: new Date(),
     });
 
-    console.log(`🎁 [SIGNUP] New student ${user.email} received 100 pts signup bonus`);
+    console.log(` [SIGNUP] New student ${user.email} received 100 pts signup bonus`);
 
-    // ✅ Notify Student
+    //  Notify Student
     await createNotification(
       user._id,
-      '🎉 100 Points Credited! Welcome Bonus!',
+      ' 100 Points Credited! Welcome Bonus!',
       'reward'
     );
 
-    // ✅ Notify Admins
+    //  Notify Admins
     const admins = await User.find({ role: 'admin' });
     for (const admin of admins) {
       await createNotification(
@@ -142,7 +142,7 @@ const forgotPassword = async (req, res) => {
     }
 
     // Since we don't have SMTP setup, we simulate the "Reset Email Sent"
-    console.log(`🔑 [PASSWORD RESET] Request received for ${user.email}`);
+    console.log(` [PASSWORD RESET] Request received for ${user.email}`);
     
     res.json({ 
       message: 'Password reset request received. Instructions have been sent to your administrator or registered email.' 

@@ -9,12 +9,12 @@ cloudinary.config({
 // Startup check — log whether Cloudinary is configured
 const cfg = cloudinary.config();
 if (!cfg.cloud_name || !cfg.api_key || !cfg.api_secret) {
-  console.error("❌ CLOUDINARY IS NOT CONFIGURED! Check env vars:");
+  console.error(" CLOUDINARY IS NOT CONFIGURED! Check env vars:");
   console.error("   Expected: CLOUDINARY_CLOUD_NAME or CLOUD_NAME");
   console.error("   Expected: CLOUDINARY_API_KEY or API_KEY");
   console.error("   Expected: CLOUDINARY_API_SECRET or API_SECRET");
 } else {
-  console.log(`✅ Cloudinary configured: cloud_name=${cfg.cloud_name}`);
+  console.log(` Cloudinary configured: cloud_name=${cfg.cloud_name}`);
 }
 
 module.exports = cloudinary;

@@ -29,11 +29,11 @@ const uploadToCloudinary = (file, folder = "sustainx") => {
   return new Promise((resolve, reject) => {
     // ── Pre-flight check: file buffer ──
     if (!file || !file.buffer) {
-      console.error("❌ [CLOUDINARY] No file buffer provided");
+      console.error(" [CLOUDINARY] No file buffer provided");
       return reject(new Error("No file buffer provided for Cloudinary upload"));
     }
 
-    console.log(`☁️ [CLOUDINARY] Starting upload | folder=${folder} | size=${file.buffer.length} bytes | mime=${file.mimetype}`);
+    console.log(` [CLOUDINARY] Starting upload | folder=${folder} | size=${file.buffer.length} bytes | mime=${file.mimetype}`);
 
     // ── Pre-flight check: Cloudinary config ──
     const cfg = cloudinary.config();
@@ -43,7 +43,7 @@ const uploadToCloudinary = (file, folder = "sustainx") => {
       if (!cfg.api_key) missing.push("CLOUDINARY_API_KEY");
       if (!cfg.api_secret) missing.push("CLOUDINARY_API_SECRET");
       const errMsg = `Cloudinary not configured! Missing env vars: ${missing.join(", ")}`;
-      console.error(`❌ [CLOUDINARY] ${errMsg}`);
+      console.error(` [CLOUDINARY] ${errMsg}`);
       return reject(new Error(errMsg));
     }
 
@@ -52,21 +52,21 @@ const uploadToCloudinary = (file, folder = "sustainx") => {
       { folder, resource_type: "image" },
       (error, result) => {
         if (error) {
-          console.error("❌ [CLOUDINARY] upload_stream error:", JSON.stringify(error));
+          console.error(" [CLOUDINARY] upload_stream error:", JSON.stringify(error));
           return reject(new Error(`Cloudinary error: ${error.message || JSON.stringify(error)}`));
         }
         if (!result || !result.secure_url) {
-          console.error("❌ [CLOUDINARY] No secure_url in result:", JSON.stringify(result));
+          console.error(" [CLOUDINARY] No secure_url in result:", JSON.stringify(result));
           return reject(new Error("Cloudinary returned no URL"));
         }
-        console.log(`✅ [CLOUDINARY] Upload OK: ${result.secure_url}`);
+        console.log(` [CLOUDINARY] Upload OK: ${result.secure_url}`);
         resolve(result.secure_url);
       }
     );
 
     // ── Handle stream errors ──
     stream.on("error", (streamErr) => {
-      console.error("❌ [CLOUDINARY] Stream error:", streamErr.message);
+      console.error(" [CLOUDINARY] Stream error:", streamErr.message);
       reject(new Error(`Cloudinary stream error: ${streamErr.message}`));
     });
 

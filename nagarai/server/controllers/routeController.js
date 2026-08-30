@@ -82,7 +82,7 @@ const generateRoutes = async (req, res) => {
 
     res.json({ depot, binsAssigned: due.length - unassigned.length, routes: enriched, unassigned });
   } catch (err) {
-    console.error('❌ [ROUTE] generate error:', err.message);
+    console.error(' [ROUTE] generate error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -151,7 +151,7 @@ const deployRoutes = async (req, res) => {
       workersAssigned: enriched.length,
     });
   } catch (err) {
-    console.error('❌ [ROUTE] deploy error:', err.message);
+    console.error(' [ROUTE] deploy error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -202,7 +202,7 @@ const reroute = async (req, res) => {
 
     res.json({ reroutedVehicle: nearest.vehicleId || String(nearest._id), distanceM: Math.round(best), task, incident });
   } catch (err) {
-    console.error('❌ [ROUTE] reroute error:', err.message);
+    console.error(' [ROUTE] reroute error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

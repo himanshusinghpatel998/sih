@@ -46,10 +46,10 @@ const addReward = async (req, res) => {
       date: new Date(),
     });
 
-    // ✅ Notify User
+    //  Notify User
     await createNotification(
       user._id,
-      `🏆 Reward Credited: +${points} pts for "${activity}"`,
+      ` Reward Credited: +${points} pts for "${activity}"`,
       'reward'
     );
 

@@ -7,7 +7,7 @@ const mongoose = require('./miniMongoose');
 
 const connectDB = async () => {
   const conn = await mongoose.connect();
-  console.log(`✅ Database ready: ${conn.connection.host}`);
+  console.log(` Database ready: ${conn.connection.host}`);
 };
 
 module.exports = connectDB;

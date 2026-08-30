@@ -107,7 +107,7 @@ const runPredictions = async (req, res) => {
         });
         usedRealModel = true;
       } catch (err) {
-        console.warn('⚠️ [PREDICTION] ml-service call failed, falling back to rule engine:', err.message);
+        console.warn(' [PREDICTION] ml-service call failed, falling back to rule engine:', err.message);
       }
     }
 
@@ -141,7 +141,7 @@ const runPredictions = async (req, res) => {
 
     res.json({ count: results.length, engine: usedRealModel ? 'xgboost-live' : 'rule', results });
   } catch (err) {
-    console.error('❌ [PREDICTION] run error:', err.message);
+    console.error(' [PREDICTION] run error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

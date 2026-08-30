@@ -28,7 +28,7 @@ const EVENT_BASE_MULTIPLIER = {
 // kg per attendee per day contributed to waste (rough urban estimate)
 const KG_PER_ATTENDEE = 0.08;
 
-// Capacity per temporary bin (L). Assume ~0.9 usable → kg.
+// Capacity per temporary bin (L). Assume ~0.9 usable  kg.
 const tmpBinCapacityL = 660;
 const usabilityFactor = 0.9;
 const kgPerTmpBin = tmpBinCapacityL * usabilityFactor; // ~594 kg if we equate L≈kg for demo scale
@@ -64,7 +64,7 @@ const computeEventImpact = ({ type = 'other', expectedAttendance = 0, name = '' 
   const sweeperHours = sweeperPerKg * extraKgDay;
   const extraSweepers = Math.max(0, Math.round(sweeperHours / 4));
 
-  // Collection frequency: higher spike → shorter interval
+  // Collection frequency: higher spike  shorter interval
   const collectionFrequencyHrs = wasteMultiplier >= 3 ? 2 : wasteMultiplier >= 2 ? 3 : 4;
 
   // Peak window: evening (18-23) with spill into late night for big events
