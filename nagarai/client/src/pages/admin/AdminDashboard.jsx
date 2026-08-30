@@ -20,6 +20,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import { Badge } from '../../components/ui/Badge';
 import TabTransition from '../../components/ui/TabTransition';
 import NagaraiCommandCenter from './NagaraiCommandCenter';
+import WasteOpsTab from '../../components/admin/WasteOpsTab';
 import { fmtDate, getInitials } from '../../utils/helpers';
 import {
   getComplaints, getUsers, getUserById, createUser, deleteUserApi, getDashboardStats,
@@ -28,6 +29,7 @@ import {
 
 const NAV_ITEMS = [
   { id: 'sec-nagarai', label: 'NagarAI Command', icon: <Building2 className="h-4 w-4" /> },
+  { id: 'sec-waste-ops', label: 'Waste Ops', icon: <Truck className="h-4 w-4" /> },
   { id: 'sec-dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: 'sec-store-orders', label: 'Store Orders', icon: <ShoppingBag className="h-4 w-4" /> },
   { id: 'sec-collectors', label: 'Manage Collectors', icon: <Truck className="h-4 w-4" /> },
@@ -199,6 +201,8 @@ export default function AdminDashboard() {
         <TabTransition tabKey={section}>
 
           {section === 'sec-nagarai' && <NagaraiCommandCenter />}
+
+          {section === 'sec-waste-ops' && <WasteOpsTab />}
 
           {section === 'sec-dashboard' && (
             <div className="space-y-5">
