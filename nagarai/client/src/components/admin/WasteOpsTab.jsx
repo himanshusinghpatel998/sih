@@ -1,3 +1,4 @@
+import './waste-ops.css';
 import { useWasteEngine } from '../../hooks/useWasteEngine';
 import { WasteMap } from '../../components/map/WasteMap';
 import { HeatPanel } from '../../components/panels/HeatPanel';
