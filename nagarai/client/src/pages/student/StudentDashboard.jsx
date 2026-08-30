@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Camera, MapPin, Clock, CheckCircle2, XCircle, Search, Recycle, Trophy,
-  ShoppingCart, Plus, Minus, Trash2, Copy, Star, Printer, Sparkles, Package, X,
-  User, FileText, ClipboardList, Smartphone, Leaf, Waves, Utensils, Zap,
-  Building2, HardHat, Mail, Gift,
+  Camera, MapPin, Clock, CheckCircle2, XCircle, Search, Eye, Recycle, Trophy,
+  ShoppingCart, ShoppingBag, Plus, Minus, Trash2, Copy, Star, Printer, Sparkles, Package, X,
+  FileText, ClipboardList, Leaf, Waves, Utensils, Zap,
+  Building2, HardHat, Mail, Gift, ChevronDown, ChevronUp, Settings, GripVertical,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -25,17 +25,26 @@ import {
   addReward, changePassword, getUserById, getStoreItems, redeemStoreItem, getOrders, updateUser,
 } from '../../services/api';
 
+// Trimmed to the two things a citizen actually needs a persistent tab for.
+// Profile / Orders / Rewards moved behind the top-right profile menu instead
+// of eating sidebar space — they're still full pages, just reached differently.
 const NAV_ITEMS = [
-  { id: 'sec-profile', label: 'Profile', icon: <User className="h-4 w-4" /> },
-  { id: 'sec-complaint', label: 'Complaint', icon: <Camera className="h-4 w-4" /> },
-  { id: 'sec-history', label: 'History', icon: <ClipboardList className="h-4 w-4" /> },
-  { id: 'sec-status', label: 'Track Status', icon: <Search className="h-4 w-4" /> },
-  { id: 'sec-scan', label: 'Quick Scan', icon: <Smartphone className="h-4 w-4" /> },
-  { id: 'sec-reward', label: 'Rewards', icon: <Trophy className="h-4 w-4" /> },
-  { id: 'sec-store', label: 'Store', icon: <ShoppingCart className="h-4 w-4" /> },
-  { id: 'sec-orders', label: 'My Orders', icon: <Package className="h-4 w-4" /> },
-  { id: 'sec-awareness', label: 'Awareness', icon: <Leaf className="h-4 w-4" /> },
+  { id: 'sec-report', label: 'Report & Track', icon: <Camera className="h-4 w-4" /> },
+  { id: 'sec-scan', label: 'Quick Scan', icon: <Trash2 className="h-4 w-4" /> },
+  { id: 'sec-store', label: 'Eco Store', icon: <ShoppingCart className="h-4 w-4" /> },
 ];
+
+// Topbar title needs labels for every section, including the ones reached
+// via the profile menu rather than the sidebar.
+const SECTION_LABELS = {
+  'sec-report': 'Report & Track',
+  'sec-scan': 'Quick Scan',
+  'sec-store': 'Eco Store',
+  'sec-profile': 'Account Settings',
+  'sec-orders': 'My Orders',
+  'sec-reward': 'Rewards',
+  'sec-history': 'Complaint History',
+};
 
 const AWARENESS_SLIDES = [
   { icon: Recycle, title: 'Reduce, Reuse, Recycle', text: 'The 3Rs are the foundation of sustainable waste management.', badge: 'SDG Goal 12' },
@@ -45,12 +54,49 @@ const AWARENESS_SLIDES = [
   { icon: Trophy, title: 'Earn Rewards for Clean Campus', text: 'Every complaint and dustbin alert earns you reward points.', badge: 'Campus Initiative' },
 ];
 
+// Hardcoded placeholder catalogue — shown whenever the store API returns no
+// items, so the Eco Store never looks empty during a demo, and redeemable via
+// a local simulation (see handleRedeem) since these aren't real DB records.
+// TODO: drop this once real product data is served from Supabase.
+// Icon tiles instead of photos — via.placeholder.com (the rest of the app's
+// image-error fallback) has been flaky/returning 503s, and there's no real
+// product photography for demo items yet.
+const HARDCODED_STORE_ITEMS = [
+  { _id: 'demo-tote-bag', name: 'Recycled Jute Tote Bag', category: 'Bags', description: 'Sturdy tote woven from recycled jute fibre — swap out single-use plastic bags for good.', icon: ShoppingBag, pointsRequired: 150, stock: 20 },
+  { _id: 'demo-toothbrush', name: 'Bamboo Toothbrush (Pack of 4)', category: 'Personal Care', description: 'Biodegradable bamboo handles with BPA-free bristles. Compost the handle when you\'re done.', icon: Sparkles, pointsRequired: 80, stock: 35 },
+  { _id: 'demo-notebook', name: 'Recycled Paper Notebook', category: 'Stationery', description: 'A5 notebook made from 100% post-consumer recycled paper.', icon: FileText, pointsRequired: 60, stock: 50 },
+  { _id: 'demo-bottle', name: 'Steel Reusable Water Bottle', category: 'Drinkware', description: 'Insulated stainless steel bottle — keeps drinks cold for 24h, hot for 12h.', icon: Waves, pointsRequired: 200, stock: 15 },
+  { _id: 'demo-compost-kit', name: 'Compost Starter Kit', category: 'Gardening', description: 'Everything you need to start composting food scraps on your balcony or in your room.', icon: Leaf, pointsRequired: 250, stock: 10 },
+  { _id: 'demo-seed-paper', name: 'Seed Paper Pack (Plantable)', category: 'Stationery', description: 'Plantable paper embedded with wildflower seeds — write on it, then plant it.', icon: Recycle, pointsRequired: 40, stock: 60 },
+];
+
 const BLOCKS = ['A', 'B', 'C', 'D', 'E'];
 const FIELD = 'w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none ring-brand-400 focus:ring-2';
 const LABEL = 'mb-1 block text-xs font-medium text-muted-foreground';
 function Field({ label, children }) { return <div><label className={LABEL}>{label}</label>{children}</div>; }
 function Th({ children }) { return <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">{children}</th>; }
 function Td({ children, className }) { return <td className={`px-3 py-2 text-sm ${className || ''}`}>{children}</td>; }
+// Store items either come from the real API (have `.image`) or the hardcoded
+// demo catalogue (have `.icon` instead, since there's no real product photo).
+function ProductThumb({ item, className, iconClassName = 'h-10 w-10' }) {
+  if (item.icon) {
+    return (
+      <div className={cn('flex items-center justify-center bg-gradient-to-br from-brand-500/15 to-brand-700/10', className)}>
+        <item.icon className={cn(iconClassName, 'text-brand-600 dark:text-brand-400')} strokeWidth={1.25} />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={item.image}
+      alt={item.name}
+      loading="lazy"
+      className={cn('object-cover', className)}
+      onError={(e) => { e.target.src = 'https://via.placeholder.com/200'; }}
+    />
+  );
+}
+
 function EmptyState({ icon: Icon, title, desc }) {
   return (
     <div className="flex flex-col items-center gap-2 py-12 text-center">
@@ -61,10 +107,137 @@ function EmptyState({ icon: Icon, title, desc }) {
   );
 }
 
+// Top-right profile icon — clicking it reveals My Orders / Rewards / Account
+// Settings instead of those living as permanent sidebar tabs.
+function ProfileMenu({ name, email, points, onNavigate }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const go = (section) => { onNavigate(section); setIsOpen(false); };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen((o) => !o)}
+        aria-label="Profile menu"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500/15 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-500/25 dark:text-brand-300"
+      >
+        {getInitials(name)}
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-11 z-30 w-64 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+          >
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
+                {getInitials(name)}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                <p className="truncate text-xs text-muted-foreground">{email}</p>
+              </div>
+            </div>
+            <div className="px-4 py-2.5">
+              <Badge variant="warning"><Trophy className="h-3 w-3" /> {points} pts</Badge>
+            </div>
+            <div className="space-y-0.5 p-2 pt-0">
+              <button onClick={() => go('sec-orders')} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <Package className="h-4 w-4 text-muted-foreground" /> My Orders
+              </button>
+              <button onClick={() => go('sec-reward')} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <Trophy className="h-4 w-4 text-muted-foreground" /> Rewards
+              </button>
+              <button onClick={() => go('sec-history')} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <ClipboardList className="h-4 w-4 text-muted-foreground" /> Complaint History
+              </button>
+              <button onClick={() => go('sec-profile')} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <Settings className="h-4 w-4 text-muted-foreground" /> Account Settings
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Compact "back to the main flow" link for the pages reached via the profile
+// menu (Profile / Orders / Rewards no longer sit in the sidebar).
+function BackToReport({ onNavigate }) {
+  return (
+    <button onClick={() => onNavigate('sec-report')} className="mb-1 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+      <ChevronDown className="h-4 w-4 rotate-90" /> Back to Report &amp; Track
+    </button>
+  );
+}
+
+// Awareness carousel, relocated from its own tab to a small movable widget
+// anchored at the end of the page — drag it out of the way, or collapse it.
+function AwarenessWidget({ slides, index, onNext, onPrev, onSelect, collapsed, onToggleCollapsed }) {
+  const Icon = slides[index].icon;
+  return (
+    <motion.div
+      drag
+      dragMomentum={false}
+      dragElastic={0.08}
+      className="mx-auto mt-8 w-full max-w-2xl cursor-default rounded-xl border border-border bg-card shadow-sm"
+    >
+      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+        <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing" />
+        <Leaf className="h-4 w-4 shrink-0 text-brand-500" />
+        <p className="flex-1 text-sm font-semibold text-foreground">Waste awareness</p>
+        <button onClick={onToggleCollapsed} className="text-muted-foreground hover:text-foreground">
+          {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+        </button>
+      </div>
+      {!collapsed && (
+        <div className="p-4">
+          <div className="relative overflow-hidden rounded-lg">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3 }}
+                className="flex flex-col items-center gap-2 rounded-lg bg-gradient-to-br from-brand-500/10 to-brand-700/5 p-6 text-center"
+              >
+                <Icon className="h-8 w-8 text-brand-600 dark:text-brand-400" strokeWidth={1.5} />
+                <h3 className="text-base font-bold text-foreground">{slides[index].title}</h3>
+                <p className="max-w-md text-xs text-muted-foreground">{slides[index].text}</p>
+                <Badge>{slides[index].badge}</Badge>
+              </motion.div>
+            </AnimatePresence>
+            <button onClick={onPrev} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-card/80 p-1.5 shadow hover:bg-card">‹</button>
+            <button onClick={onNext} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-card/80 p-1.5 shadow hover:bg-card">›</button>
+          </div>
+          <div className="mt-3 flex justify-center gap-1.5">
+            {slides.map((_, i) => (
+              <button key={i} onClick={() => onSelect(i)} className={cn('h-1.5 rounded-full transition-all', index === i ? 'w-6 bg-brand-500' : 'w-1.5 bg-muted')} />
+            ))}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function StudentDashboard() {
   const { user } = useAuth();
   const { showToast } = useToast();
-  const [section, setSection] = useState('sec-profile');
+  const [section, setSection] = useState('sec-report');
+  const [awarenessCollapsed, setAwarenessCollapsed] = useState(false);
 
   const [profile, setProfile] = useState(null);
   const [recentComplaints, setRecentComplaints] = useState([]);
@@ -79,9 +252,10 @@ export default function StudentDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [histFilter, setHistFilter] = useState('');
 
-  const [trackInput, setTrackInput] = useState('');
   const [trackResult, setTrackResult] = useState(null);
   const [trackNotFound, setTrackNotFound] = useState(false);
+  const [trackingId, setTrackingId] = useState(null);
+  const [reportFilter, setReportFilter] = useState('active');
 
   const [scanLocation, setScanLocation] = useState('');
   const [scanBlock, setScanBlock] = useState('');
@@ -95,6 +269,8 @@ export default function StudentDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [storeItems, setStoreItems] = useState([]);
+  const [demoItems, setDemoItems] = useState(HARDCODED_STORE_ITEMS);
+  const [demoOrders, setDemoOrders] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
 
@@ -143,8 +319,33 @@ export default function StudentDashboard() {
   const prevSlide = useCallback(() => setCarouselIdx((i) => (i - 1 + slides) % slides), [slides]);
   useEffect(() => { const t = setInterval(nextSlide, 5000); return () => clearInterval(t); }, [nextSlide]);
 
+  // Demo catalogue items (no real DB record yet — see HARDCODED_STORE_ITEMS)
+  // are redeemed entirely client-side: deduct points, fabricate an order with
+  // a pickup code, and skip the real API call that would 404 on a fake id.
+  const handleDemoRedeem = (item) => {
+    if (rewardTotal < item.pointsRequired) return toast.error(`Need ${item.pointsRequired - rewardTotal} more points to redeem this.`);
+    if (item.stock <= 0) return toast.error('Item is out of stock.');
+    const order = {
+      _id: `demo-order-${Date.now()}`,
+      orderId: `ORD-DEMO-${Date.now()}`,
+      itemName: item.name,
+      pointsUsed: item.pointsRequired,
+      status: 'pending',
+      pickupCode: Math.random().toString(36).slice(2, 8).toUpperCase(),
+      pickupLocation: 'Admin Office',
+      pickupTime: '10 AM - 5 PM',
+      createdAt: new Date().toISOString(),
+    };
+    setDemoItems((prev) => prev.map((d) => (d._id === item._id ? { ...d, stock: d.stock - 1 } : d)));
+    setDemoOrders((prev) => [order, ...prev]);
+    setRewardTotal((prev) => prev - item.pointsRequired);
+    toast.success(`Item redeemed! Order ${order.orderId} created — ${rewardTotal - item.pointsRequired} pts remaining`);
+  };
+
   const handleRedeem = async (itemId) => {
     if (isRedeeming) return;
+    const demoItem = demoItems.find((d) => d._id === itemId);
+    if (demoItem) return handleDemoRedeem(demoItem);
     setIsRedeeming(true);
     try {
       const res = await redeemStoreItem(itemId);
@@ -193,10 +394,13 @@ export default function StudentDashboard() {
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
   };
 
-  const handleTrack = async () => {
-    setTrackResult(null); setTrackNotFound(false);
-    if (!trackInput.trim()) return;
-    try { setTrackResult((await fetchComplaint(trackInput.trim().toUpperCase())).data); }
+  const closeTrack = () => { setTrackingId(null); setTrackResult(null); setTrackNotFound(false); };
+
+  const handleTrack = async (complaintId) => {
+    if (trackingId === complaintId) return closeTrack();
+    setTrackingId(complaintId); setTrackResult(null); setTrackNotFound(false);
+    if (!complaintId) return;
+    try { setTrackResult((await fetchComplaint(complaintId.toUpperCase())).data); }
     catch { setTrackNotFound(true); }
   };
 
@@ -221,7 +425,15 @@ export default function StudentDashboard() {
     catch { toast.error('Error loading complaint details'); }
   };
 
-  const currentLabel = NAV_ITEMS.find((n) => n.id === section)?.label || '';
+  const currentLabel = SECTION_LABELS[section] || '';
+  const REPORT_FILTERS = {
+    active: (c) => c.status === 'pending' || c.status === 'in-progress',
+    done: (c) => c.status === 'completed',
+    removed: (c) => c.status === 'rejected',
+  };
+  const filteredComplaints = complaints.filter(REPORT_FILTERS[reportFilter] || REPORT_FILTERS.active);
+  const storeStock = storeItems.length > 0 ? storeItems : demoItems;
+  const allOrders = [...demoOrders, ...myOrders];
   const cartMap = {};
   cart.forEach((item) => { cartMap[item._id] = cartMap[item._id] ? { ...cartMap[item._id], qty: cartMap[item._id].qty + 1 } : { ...item, qty: 1 }; });
   const cartItems = Object.values(cartMap);
@@ -232,12 +444,24 @@ export default function StudentDashboard() {
     <div className="flex min-h-screen bg-background">
       <Sidebar portalName="Citizen Portal" icon={<Recycle className="h-4 w-4" />} navItems={NAV_ITEMS} activeSection={section} onNavigate={setSection} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={currentLabel} onToggleMenu={() => setIsSidebarOpen(true)} />
+        <Topbar
+          title={currentLabel}
+          onToggleMenu={() => setIsSidebarOpen(true)}
+          rightSlot={
+            <ProfileMenu
+              name={profile?.name || user?.name}
+              email={profile?.email || user?.email}
+              points={profile?.rewardPoints || 0}
+              onNavigate={setSection}
+            />
+          }
+        />
         <main className="flex-1 space-y-5 p-4 md:p-6">
         <TabTransition tabKey={section}>
 
           {section === 'sec-profile' && (
             <div className="space-y-5">
+              <BackToReport onNavigate={setSection} />
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-600 text-xl font-bold text-white">{getInitials(profile?.name)}</div>
                 <div>
@@ -296,52 +520,129 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {section === 'sec-complaint' && (
-            <Card className="max-w-2xl">
-              <CardHeader><CardTitle className="flex items-center gap-2"><Camera className="h-4 w-4" /> File a complaint</CardTitle></CardHeader>
-              <CardContent>
-                <form onSubmit={handleComplaint} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Location"><input className={FIELD} placeholder="e.g. Block A Ground Floor" value={compLocation} onChange={(e) => setCompLocation(e.target.value)} /></Field>
-                    <Field label="Block">
-                      <select className={FIELD} value={compBlock} onChange={(e) => setCompBlock(e.target.value)}>
-                        <option value="">Select block…</option>
-                        {BLOCKS.map((b) => <option key={b} value={b}>Block {b}</option>)}
-                      </select>
-                    </Field>
-                  </div>
-                  <Field label="Waste type">
-                    <select className={FIELD} value={compType} onChange={(e) => setCompType(e.target.value)}>
-                      <option value="">Select type…</option>
-                      {['Mixed Waste', 'Food Waste', 'Paper Waste', 'Plastic Waste', 'Electronic Waste', 'Hazardous Waste', 'Other'].map((t) => <option key={t}>{t}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Description"><textarea className={cn(FIELD, 'min-h-24 resize-y')} placeholder="Describe the waste situation…" value={compDesc} onChange={(e) => setCompDesc(e.target.value)} /></Field>
-                  <Field label="Attach image (optional)">
-                    <div onClick={() => document.getElementById('complaint-image-input').click()} className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:border-brand-400">
-                      {compPreview ? (
-                        <div className="relative">
-                          <img src={compPreview} alt="Preview" className="max-h-40 rounded-lg" />
-                          <button type="button" onClick={(e) => { e.stopPropagation(); setCompImage(null); setCompPreview(null); document.getElementById('complaint-image-input').value = ''; }} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger-500 text-white"><X className="h-3.5 w-3.5" /></button>
-                        </div>
-                      ) : (
-                        <>
-                          <Camera className="h-6 w-6 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Click to upload image</span>
-                          <span className="text-xs text-muted-foreground">JPG, PNG, WEBP — max 2 MB</span>
-                        </>
-                      )}
-                      <input id="complaint-image-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageChange} className="hidden" />
+          {section === 'sec-report' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Report &amp; track</h2>
+                <p className="text-sm text-muted-foreground">File a complaint, then track it below.</p>
+              </div>
+
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Camera className="h-4 w-4" /> File a complaint</CardTitle></CardHeader>
+                <CardContent>
+                  <form onSubmit={handleComplaint} className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <Field label="Location"><input className={FIELD} placeholder="e.g. Block A Ground Floor" value={compLocation} onChange={(e) => setCompLocation(e.target.value)} /></Field>
+                      <Field label="Block">
+                        <select className={FIELD} value={compBlock} onChange={(e) => setCompBlock(e.target.value)}>
+                          <option value="">Select block…</option>
+                          {BLOCKS.map((b) => <option key={b} value={b}>Block {b}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="Waste type">
+                        <select className={FIELD} value={compType} onChange={(e) => setCompType(e.target.value)}>
+                          <option value="">Select type…</option>
+                          {['Mixed Waste', 'Food Waste', 'Paper Waste', 'Plastic Waste', 'Electronic Waste', 'Hazardous Waste', 'Other'].map((t) => <option key={t}>{t}</option>)}
+                        </select>
+                      </Field>
                     </div>
-                  </Field>
-                  <Button type="submit" size="lg" className="w-full">Submit complaint</Button>
-                </form>
-              </CardContent>
-            </Card>
+                    <Field label="Description"><textarea className={cn(FIELD, 'min-h-24 resize-y')} placeholder="Describe the waste situation…" value={compDesc} onChange={(e) => setCompDesc(e.target.value)} /></Field>
+                    <Field label="Attach image (optional)">
+                      <div onClick={() => document.getElementById('complaint-image-input').click()} className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:border-brand-400">
+                        {compPreview ? (
+                          <div className="relative">
+                            <img src={compPreview} alt="Preview" className="max-h-40 rounded-lg" />
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setCompImage(null); setCompPreview(null); document.getElementById('complaint-image-input').value = ''; }} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger-500 text-white"><X className="h-3.5 w-3.5" /></button>
+                          </div>
+                        ) : (
+                          <>
+                            <Camera className="h-6 w-6 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Click to upload image</span>
+                            <span className="text-xs text-muted-foreground">JPG, PNG, WEBP — max 2 MB</span>
+                          </>
+                        )}
+                        <input id="complaint-image-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageChange} className="hidden" />
+                      </div>
+                    </Field>
+                    <Button type="submit" size="lg" className="w-full sm:w-auto">Submit complaint</Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+                  <CardTitle className="flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Your complaints</CardTitle>
+                  <select className={cn(FIELD, 'w-32')} value={reportFilter} onChange={(e) => { setReportFilter(e.target.value); closeTrack(); }}>
+                    <option value="active">Active</option>
+                    <option value="done">Done</option>
+                    <option value="removed">Removed</option>
+                  </select>
+                </CardHeader>
+                <CardContent>
+                  {filteredComplaints.length === 0 ? (
+                    <EmptyState icon={Camera} title="No complaints here" desc="Nothing matches this filter yet." />
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredComplaints.map((c) => (
+                        <div key={c.complaintId} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
+                          {c.image ? <img src={c.image} alt="" className="h-10 w-10 rounded-md object-cover" onError={(e) => { e.target.style.display = 'none'; }} /> : <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted"><Camera className="h-4 w-4 text-muted-foreground" /></div>}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">{c.complaintId}</p>
+                            <p className="truncate text-xs text-muted-foreground">{c.location}</p>
+                          </div>
+                          <StatusBadge status={c.status} />
+                          <button onClick={() => handleTrack(c.complaintId)} aria-label="Check status" title="Check status" className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground', trackingId === c.complaintId ? 'bg-muted text-foreground' : 'text-muted-foreground')}>
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {section === 'sec-scan' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Quick scan</h2>
+                <p className="text-sm text-muted-foreground">Report an overflowing dustbin directly — no full complaint form needed.</p>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Card className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-signal-500/10">
+                    <Trash2 className="h-8 w-8 text-signal-500" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">Dustbin full alert</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Earn reward points for every scan you report.</p>
+                  </div>
+                </Card>
+                <Card className="lg:col-span-2">
+                  <CardHeader><CardTitle className="flex items-center gap-2"><Trash2 className="h-4 w-4 text-signal-500" /> Report details</CardTitle></CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleScan} className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Dustbin location"><input className={FIELD} placeholder="e.g. Canteen Entrance Gate 3" value={scanLocation} onChange={(e) => setScanLocation(e.target.value)} /></Field>
+                        <Field label="Block">
+                          <select className={FIELD} value={scanBlock} onChange={(e) => setScanBlock(e.target.value)}>
+                            <option value="">Select block…</option>
+                            {BLOCKS.map((b) => <option key={b} value={b}>Block {b}</option>)}
+                          </select>
+                        </Field>
+                      </div>
+                      <Button type="submit" variant="signal" size="lg" className="w-full sm:w-auto">Send dustbin alert</Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           )}
 
           {section === 'sec-history' && (
             <div className="space-y-4">
+              <BackToReport onNavigate={setSection} />
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-foreground">Complaint history</h2>
                 <select className={cn(FIELD, 'w-40')} value={histFilter} onChange={(e) => setHistFilter(e.target.value)}>
@@ -375,93 +676,9 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {section === 'sec-status' && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">Track complaint</h2>
-              <Card className="max-w-lg">
-                <CardContent className="flex gap-2 pt-5">
-                  <input className={FIELD} placeholder="e.g. COMP-1777133531013" value={trackInput} onChange={(e) => setTrackInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleTrack()} />
-                  <Button onClick={handleTrack}><Search className="h-4 w-4" /></Button>
-                </CardContent>
-              </Card>
-              {trackResult && (
-                <Card className="max-w-lg">
-                  <CardContent className="space-y-4 pt-5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-foreground">{trackResult.complaintId}</h3>
-                      <StatusBadge status={trackResult.status} />
-                    </div>
-                    <p className="text-sm text-muted-foreground"><strong className="text-foreground">Location:</strong> {trackResult.location} · <strong className="text-foreground">Date:</strong> {fmtDate(trackResult.createdAt)}</p>
-                    {trackResult.image && (
-                      <div className="rounded-lg border border-brand-500/20 bg-brand-500/5 p-3">
-                        <p className="mb-2 text-xs font-semibold uppercase text-brand-600 dark:text-brand-400">Submitted photo</p>
-                        <img src={trackResult.image} alt="" className="w-full rounded-lg border border-border" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
-                      </div>
-                    )}
-                    {trackResult.status === 'rejected' && (
-                      <div className="rounded-lg border border-danger-500/20 bg-danger-500/5 p-3">
-                        <p className="mb-1 text-xs font-semibold uppercase text-danger-600 dark:text-danger-400">Rejection reason</p>
-                        <p className="text-sm text-foreground">{trackResult.rejectionReason || 'No reason provided.'}</p>
-                      </div>
-                    )}
-                    {trackResult.status === 'completed' && trackResult.completionImage && (
-                      <div className="rounded-lg border border-success-500/20 bg-success-500/5 p-3">
-                        <p className="mb-2 text-xs font-semibold uppercase text-success-600 dark:text-success-400">Completion proof</p>
-                        <img src={trackResult.completionImage} alt="" className="w-full rounded-lg border border-border" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
-                      </div>
-                    )}
-                    <div className="space-y-3 border-t border-border pt-3">
-                      {[
-                        { label: 'Complaint submitted', desc: `Filed on ${fmtDate(trackResult.createdAt)}`, done: true },
-                        { label: 'Assigned to collector', desc: 'Collector notified', done: trackResult.status !== 'pending' },
-                        { label: trackResult.status === 'rejected' ? 'Rejected' : 'In progress', desc: trackResult.status === 'rejected' ? 'Complaint was denied' : 'Collector working on it', done: ['in-progress', 'completed', 'rejected'].includes(trackResult.status), isError: trackResult.status === 'rejected' },
-                        { label: 'Completed', desc: 'Area cleaned & verified', done: trackResult.status === 'completed', hidden: trackResult.status === 'rejected' },
-                      ].filter((s) => !s.hidden).map((s, i) => {
-                        const Icon = s.isError ? XCircle : s.done ? CheckCircle2 : Clock;
-                        return (
-                          <div key={i} className="flex gap-3">
-                            <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', s.isError ? 'text-danger-500' : s.done ? 'text-success-500' : 'text-muted-foreground')} />
-                            <div>
-                              <p className={cn('text-sm font-medium', s.isError ? 'text-danger-600 dark:text-danger-400' : s.done ? 'text-foreground' : 'text-muted-foreground')}>{s.label}</p>
-                              <p className="text-xs text-muted-foreground">{s.done ? s.desc : 'Pending…'}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              {trackNotFound && <Card className="max-w-lg"><CardContent className="pt-5 text-sm text-muted-foreground">Complaint not found. Check the ID and try again.</CardContent></Card>}
-            </div>
-          )}
-
-          {section === 'sec-scan' && (
-            <div className="space-y-4">
-              <Card className="flex flex-col items-center gap-2 p-8 text-center">
-                <Trash2 className="h-12 w-12 text-signal-500" strokeWidth={1.5} />
-                <h3 className="text-lg font-bold text-foreground">Dustbin full alert</h3>
-                <p className="text-sm text-muted-foreground">Report an overflowing dustbin directly. You'll earn reward points for each scan!</p>
-              </Card>
-              <Card className="max-w-lg">
-                <CardContent className="pt-5">
-                  <form onSubmit={handleScan} className="space-y-3">
-                    <Field label="Dustbin location"><input className={FIELD} placeholder="e.g. Canteen Entrance Gate 3" value={scanLocation} onChange={(e) => setScanLocation(e.target.value)} /></Field>
-                    <Field label="Block">
-                      <select className={FIELD} value={scanBlock} onChange={(e) => setScanBlock(e.target.value)}>
-                        <option value="">Select block…</option>
-                        {BLOCKS.map((b) => <option key={b} value={b}>Block {b}</option>)}
-                      </select>
-                    </Field>
-                    <Button type="submit" variant="signal" size="lg" className="w-full">Send dustbin alert</Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
           {section === 'sec-reward' && (
             <div className="space-y-4">
+              <BackToReport onNavigate={setSection} />
               <h2 className="text-lg font-semibold text-foreground">My rewards</h2>
               <div className="grid grid-cols-2 gap-4">
                 <StatCard icon={Star} value={rewardTotal} label="Total points" />
@@ -486,33 +703,6 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {section === 'sec-awareness' && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">Waste awareness</h2>
-              <div className="relative overflow-hidden rounded-xl">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={carouselIdx}
-                    initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3 }}
-                    className="flex flex-col items-center gap-3 rounded-xl bg-gradient-to-br from-brand-500/10 to-brand-700/5 p-10 text-center"
-                  >
-                    {(() => { const SlideIcon = AWARENESS_SLIDES[carouselIdx].icon; return <SlideIcon className="h-12 w-12 text-brand-600 dark:text-brand-400" strokeWidth={1.5} />; })()}
-                    <h3 className="text-xl font-bold text-foreground">{AWARENESS_SLIDES[carouselIdx].title}</h3>
-                    <p className="max-w-md text-sm text-muted-foreground">{AWARENESS_SLIDES[carouselIdx].text}</p>
-                    <Badge>{AWARENESS_SLIDES[carouselIdx].badge}</Badge>
-                  </motion.div>
-                </AnimatePresence>
-                <button onClick={prevSlide} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-card/80 p-2 shadow hover:bg-card">‹</button>
-                <button onClick={nextSlide} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-card/80 p-2 shadow hover:bg-card">›</button>
-              </div>
-              <div className="flex justify-center gap-1.5">
-                {AWARENESS_SLIDES.map((_, i) => (
-                  <button key={i} onClick={() => setCarouselIdx(i)} className={cn('h-1.5 rounded-full transition-all', carouselIdx === i ? 'w-6 bg-brand-500' : 'w-1.5 bg-muted')} />
-                ))}
-              </div>
-            </div>
-          )}
-
           {section === 'sec-store' && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -524,12 +714,12 @@ export default function StudentDashboard() {
               </div>
               <p className="text-sm text-muted-foreground">Redeem your reward points for items made from recycled waste! You have <strong className="text-success-600 dark:text-success-400">{rewardTotal} pts</strong>.</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {storeItems.length === 0 ? (
+                {storeStock.length === 0 ? (
                   <div className="sm:col-span-2 lg:col-span-3"><EmptyState icon={ShoppingCart} title="Store is empty" desc="No eco-friendly items are available right now." /></div>
-                ) : storeItems.map((item) => (
+                ) : storeStock.map((item) => (
                   <Card key={item._id} interactive className="overflow-hidden" onClick={() => setSelectedProduct(item)}>
                     <div className="relative h-36 bg-muted">
-                      <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-cover" onError={(e) => { e.target.src = 'https://via.placeholder.com/200'; }} />
+                      <ProductThumb item={item} className="h-full w-full" />
                       <Badge variant="success" className="absolute right-2 top-2"><Recycle className="h-3 w-3" /> Eco</Badge>
                     </div>
                     <CardContent className="space-y-2 pt-4">
@@ -554,22 +744,33 @@ export default function StudentDashboard() {
                   </Card>
                 ))}
               </div>
+
+              <AwarenessWidget
+                slides={AWARENESS_SLIDES}
+                index={carouselIdx}
+                onNext={nextSlide}
+                onPrev={prevSlide}
+                onSelect={setCarouselIdx}
+                collapsed={awarenessCollapsed}
+                onToggleCollapsed={() => setAwarenessCollapsed((c) => !c)}
+              />
             </div>
           )}
 
           {section === 'sec-orders' && (
             <div className="space-y-4">
+              <BackToReport onNavigate={setSection} />
               <h2 className="text-lg font-semibold text-foreground">My orders & redemptions</h2>
               <div className="grid grid-cols-3 gap-4">
-                <StatCard icon={Package} value={myOrders.length} label="Total orders" />
-                <StatCard icon={Clock} value={myOrders.filter((o) => o.status === 'pending').length} label="Pending" />
-                <StatCard icon={Gift} value={myOrders.filter((o) => o.status === 'ready_for_pickup').length} label="Ready" />
+                <StatCard icon={Package} value={allOrders.length} label="Total orders" />
+                <StatCard icon={Clock} value={allOrders.filter((o) => o.status === 'pending').length} label="Pending" />
+                <StatCard icon={Gift} value={allOrders.filter((o) => o.status === 'ready_for_pickup').length} label="Ready" />
               </div>
               {isOrdersLoading ? (
                 <p className="text-sm text-muted-foreground">Loading orders…</p>
-              ) : myOrders.length === 0 ? (
+              ) : allOrders.length === 0 ? (
                 <Card><CardContent className="pt-5"><EmptyState icon={Package} title="No orders found" desc="Redeem points in the Eco Store to see orders here." /></CardContent></Card>
-              ) : myOrders.map((o) => {
+              ) : allOrders.map((o) => {
                 const steps = ['pending', 'approved', 'ready_for_pickup', 'delivered'];
                 const idx = steps.indexOf(o.status);
                 return (
@@ -685,6 +886,72 @@ export default function StudentDashboard() {
         )}
       </Modal>
 
+      <Modal isOpen={!!trackingId} onClose={closeTrack} title={trackResult ? trackResult.complaintId : 'Complaint status'}>
+        <div className="space-y-4 p-5">
+          {trackNotFound ? (
+            <p className="text-sm text-muted-foreground">Couldn&apos;t load status. Try again.</p>
+          ) : trackResult ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <StatusBadge status={trackResult.status} />
+              </div>
+              <p className="text-sm text-muted-foreground"><strong className="text-foreground">Location:</strong> {trackResult.location} · <strong className="text-foreground">Date:</strong> {fmtDate(trackResult.createdAt)}</p>
+              {trackResult.image && (
+                <div className="rounded-lg border border-brand-500/20 bg-brand-500/5 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase text-brand-600 dark:text-brand-400">Submitted photo</p>
+                  <img src={trackResult.image} alt="" className="w-full rounded-lg border border-border" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
+                </div>
+              )}
+              {trackResult.status === 'rejected' && (
+                <div className="rounded-lg border border-danger-500/20 bg-danger-500/5 p-3">
+                  <p className="mb-1 text-xs font-semibold uppercase text-danger-600 dark:text-danger-400">Rejection reason</p>
+                  <p className="text-sm text-foreground">{trackResult.rejectionReason || 'No reason provided.'}</p>
+                </div>
+              )}
+              {trackResult.status === 'completed' && trackResult.completionImage && (
+                <div className="rounded-lg border border-success-500/20 bg-success-500/5 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase text-success-600 dark:text-success-400">Completion proof</p>
+                  <img src={trackResult.completionImage} alt="" className="w-full rounded-lg border border-border" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
+                </div>
+              )}
+              <div className="border-t border-border pt-4">
+                {[
+                  { label: 'Complaint submitted', desc: `Filed on ${fmtDate(trackResult.createdAt)}`, done: true },
+                  { label: 'Assigned to collector', desc: 'Collector notified', done: trackResult.status !== 'pending' },
+                  { label: trackResult.status === 'rejected' ? 'Rejected' : 'In progress', desc: trackResult.status === 'rejected' ? 'Complaint was denied' : 'Collector working on it', done: ['in-progress', 'completed', 'rejected'].includes(trackResult.status), isError: trackResult.status === 'rejected' },
+                  { label: 'Completed', desc: 'Area cleaned & verified', done: trackResult.status === 'completed', hidden: trackResult.status === 'rejected' },
+                ].filter((s) => !s.hidden).map((s, i, arr) => {
+                  const isLast = i === arr.length - 1;
+                  const Icon = s.isError ? XCircle : s.done ? CheckCircle2 : Clock;
+                  return (
+                    <div key={i} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <span className={cn(
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2',
+                          s.isError ? 'border-danger-500 bg-danger-500 text-white' : s.done ? 'border-brand-500 bg-brand-500 text-white' : 'border-border bg-card text-muted-foreground'
+                        )}>
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
+                        {!isLast && (
+                          <span className={cn('my-1 w-0.5 flex-1', s.done && !s.isError ? 'bg-brand-500' : 'border-l-2 border-dashed border-border')} />
+                        )}
+                      </div>
+                      <div className={cn('min-w-0', !isLast && 'pb-5')}>
+                        <p className={cn('text-sm font-medium', s.isError ? 'text-danger-600 dark:text-danger-400' : s.done ? 'text-foreground' : 'text-muted-foreground')}>{s.label}</p>
+                        <p className="text-xs text-muted-foreground">{s.done ? s.desc : 'Pending…'}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          )}
+        </div>
+      </Modal>
+
       <Modal isOpen={cartModalOpen} onClose={() => setCartModalOpen(false)} title="Your cart">
         <div className="space-y-4 p-5">
           {cartItems.length === 0 ? (
@@ -694,7 +961,7 @@ export default function StudentDashboard() {
               <div className="space-y-2">
                 {cartItems.map((ci) => (
                   <div key={ci._id} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
-                    <img src={ci.image} alt={ci.name} className="h-12 w-12 rounded-lg object-contain bg-muted p-1" onError={(e) => { e.target.src = 'https://via.placeholder.com/50'; }} />
+                    <ProductThumb item={ci} className="h-12 w-12 rounded-lg bg-muted p-1" iconClassName="h-6 w-6" />
                     <div className="flex-1"><p className="text-sm font-medium text-foreground">{ci.name}</p><p className="flex items-center gap-1 text-xs text-success-600 dark:text-success-400"><Star className="h-3 w-3" /> {ci.pointsRequired} pts each</p></div>
                     <div className="flex items-center gap-2">
                       <button onClick={() => setCart((prev) => { const i = prev.findIndex((c) => c._id === ci._id); return i === -1 ? prev : [...prev.slice(0, i), ...prev.slice(i + 1)]; })} className="rounded p-1 hover:bg-muted"><Minus className="h-3.5 w-3.5" /></button>
@@ -730,7 +997,7 @@ export default function StudentDashboard() {
       <Modal isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)} title="Product details">
         {selectedProduct && (
           <div className="space-y-4 p-5">
-            <img src={selectedProduct.image} alt={selectedProduct.name} className="h-52 w-full rounded-lg bg-muted object-contain p-4" loading="lazy" onError={(e) => { e.target.src = 'https://via.placeholder.com/400'; }} />
+            <ProductThumb item={selectedProduct} className="h-52 w-full rounded-lg bg-muted" iconClassName="h-20 w-20" />
             <div className="flex items-start justify-between">
               <h2 className="text-lg font-bold text-foreground">{selectedProduct.name}</h2>
               <Badge variant="muted">{selectedProduct.category}</Badge>

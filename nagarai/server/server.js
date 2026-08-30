@@ -25,6 +25,7 @@ const taskRoutes = require('./routes/taskRoutes');
 const simulatorRoutes = require('./routes/simulatorRoutes');
 const sweepingRoutes = require('./routes/sweepingRoutes');
 const cctvRoutes = require('./routes/cctvRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 const app = express();
 
@@ -77,6 +78,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/simulate', simulatorRoutes);
 app.use('/api/sweeping', sweepingRoutes);
 app.use('/api/cctv', cctvRoutes);
+app.use('/api/public', publicRoutes);
 
 //  Root route (Render health check)
 app.get('/', (req, res) => {
