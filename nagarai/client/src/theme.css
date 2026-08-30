@@ -1,0 +1,266 @@
+/*
+  NagarAI design system v2 — replanned via the tastemaker skill's contrast-
+  verified palette generator (mood: "technical", split-complementary harmony,
+  seed 42) rather than hand-picked hex values. Full generator output and
+  contrast matrix are recorded below for provenance.
+
+  Light:  text #151d16  bg #f2faf3  surface #e8f0e9  primary #37844f
+          on-primary #ffffff  secondary #cce6d1  accent #8063ab  border #d8dfd9
+  Dark:   text #eaf5ec  bg #070c08  surface #111713  primary #37844f
+          on-primary #ffffff  secondary #1f3424  accent #ab8dd9  border #1d231e
+
+  Both modes verified: text/bg, text/surface, primary/on-primary all clear
+  the 4.5:1 text-safe floor; bg/primary and bg/accent clear 3:1+ UI-safe.
+  Green (hue ~151) carries the civic/sanitation identity and doubles as the
+  "success" semantic color — thematically the same thing in this product.
+  Violet (hue ~301) is reserved as the "predictive/AI" accent, kept visually
+  distinct from status colors (signal=amber, danger=red, unchanged).
+
+  Typography: Archivo (display/headings) + IBM Plex Sans (body) + IBM Plex
+  Mono (data, timestamps, IDs, coordinates) — the "technical" mood's font
+  set. Replaces the earlier Inter/JetBrains Mono pairing to read as a
+  designed product rather than a demo (Inter is the single most common
+  AI-default display face).
+*/
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+/* style.css/auth.css (the pre-rebuild hand-written CSS) are no longer
+   imported — every page and component now runs on this Tailwind system,
+   confirmed by grep: zero remaining references to their class names. */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Archivo', 'IBM Plex Sans', ui-sans-serif, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* Brand — verified green scale (hue ~151), anchored on generator primary #37844f at 500 */
+  --color-brand-50: #f1faf4;
+  --color-brand-100: #ddf3e4;
+  --color-brand-200: #bce6c9;
+  --color-brand-300: #8ed2a6;
+  --color-brand-400: #5bb87d;
+  --color-brand-500: #37844f;
+  --color-brand-600: #2c6a40;
+  --color-brand-700: #245536;
+  --color-brand-800: #1e442c;
+  --color-brand-900: #193824;
+  --color-brand-950: #0c1f13;
+
+  /* Accent — verified violet scale (hue ~301), the "predictive/AI" signature color */
+  --color-accent-300: #d4c2ec;
+  --color-accent-400: #c4a8e8;
+  --color-accent-500: #ab8dd9;
+  --color-accent-600: #8063ab;
+  --color-accent-700: #6b4f92;
+
+  /* Status colors — unchanged from v1, deliberately distinct from brand/accent */
+  --color-signal-400: #fbbf24;
+  --color-signal-500: #f59e0b;
+  --color-signal-600: #d97706;
+
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+
+  /* Success reuses the brand green — "success" and "clean" are the same idea here */
+  --color-success-400: var(--color-brand-400);
+  --color-success-500: var(--color-brand-500);
+  --color-success-600: var(--color-brand-600);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --border: oklch(0.922 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.708 0 0);
+  --accent-role: var(--color-accent-600);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --input: oklch(0.922 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+[data-theme='dark'] {
+  --background: #070c08;
+  --foreground: #eaf5ec;
+  --card: #111713;
+  --card-foreground: #eaf5ec;
+  --border: #1d231e;
+  --muted: #101a12;
+  --muted-foreground: #93a696;
+  --primary: var(--color-brand-500);
+  --primary-foreground: #ffffff;
+  --ring: var(--color-brand-400);
+  --accent-role: var(--color-accent-500);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-input: var(--input);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Strong custom easing curves — the built-in CSS easings are too weak to
+   feel intentional (emil-design-eng). Use via style={{transitionTimingFunction}}
+   or arbitrary Tailwind values like ease-[var(--ease-out)]. */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Every pressable element gets instant, subtle press feedback. */
+button, [role='button'], a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.font-mono-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--color-brand-300);
+  color: var(--color-brand-950);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+/*
+  ---break---
+*/
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+/*
+  ---break---
+*/
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "nagarai-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root launcher for NagarAI — ml-service (FastAPI), server (Express), client (Vite/React).",
+  "scripts": {
+    "dev": "concurrently -n ML,SERVER,CLIENT -c magenta,blue,green \"npm:dev:ml\" \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:ml": "python ml-service/main.py",
+    "dev:server": "npm --prefix nagarai/server run dev",
+    "dev:client": "npm --prefix nagarai/client run dev",
+    "install:all": "npm install && pip install -r ml-service/requirements.txt && npm --prefix nagarai/server install && npm --prefix nagarai/client install",
+    "seed": "npm --prefix nagarai/server run seed && npm --prefix nagarai/server run seed:real-bins && npm --prefix nagarai/server run create:admin"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
