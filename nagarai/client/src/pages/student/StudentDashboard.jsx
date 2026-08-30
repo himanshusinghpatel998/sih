@@ -521,17 +521,17 @@ export default function StudentDashboard() {
           )}
 
           {section === 'sec-report' && (
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Report &amp; track</h2>
                 <p className="text-sm text-muted-foreground">File a complaint, then track it below.</p>
               </div>
 
-              <Card className="max-w-2xl">
+              <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><Camera className="h-4 w-4" /> File a complaint</CardTitle></CardHeader>
                 <CardContent>
                   <form onSubmit={handleComplaint} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <Field label="Location"><input className={FIELD} placeholder="e.g. Block A Ground Floor" value={compLocation} onChange={(e) => setCompLocation(e.target.value)} /></Field>
                       <Field label="Block">
                         <select className={FIELD} value={compBlock} onChange={(e) => setCompBlock(e.target.value)}>
@@ -539,13 +539,13 @@ export default function StudentDashboard() {
                           {BLOCKS.map((b) => <option key={b} value={b}>Block {b}</option>)}
                         </select>
                       </Field>
+                      <Field label="Waste type">
+                        <select className={FIELD} value={compType} onChange={(e) => setCompType(e.target.value)}>
+                          <option value="">Select type…</option>
+                          {['Mixed Waste', 'Food Waste', 'Paper Waste', 'Plastic Waste', 'Electronic Waste', 'Hazardous Waste', 'Other'].map((t) => <option key={t}>{t}</option>)}
+                        </select>
+                      </Field>
                     </div>
-                    <Field label="Waste type">
-                      <select className={FIELD} value={compType} onChange={(e) => setCompType(e.target.value)}>
-                        <option value="">Select type…</option>
-                        {['Mixed Waste', 'Food Waste', 'Paper Waste', 'Plastic Waste', 'Electronic Waste', 'Hazardous Waste', 'Other'].map((t) => <option key={t}>{t}</option>)}
-                      </select>
-                    </Field>
                     <Field label="Description"><textarea className={cn(FIELD, 'min-h-24 resize-y')} placeholder="Describe the waste situation…" value={compDesc} onChange={(e) => setCompDesc(e.target.value)} /></Field>
                     <Field label="Attach image (optional)">
                       <div onClick={() => document.getElementById('complaint-image-input').click()} className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:border-brand-400">
@@ -564,85 +564,79 @@ export default function StudentDashboard() {
                         <input id="complaint-image-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageChange} className="hidden" />
                       </div>
                     </Field>
-                    <Button type="submit" size="lg" className="w-full">Submit complaint</Button>
+                    <Button type="submit" size="lg" className="w-full sm:w-auto">Submit complaint</Button>
                   </form>
                 </CardContent>
               </Card>
 
-              <Card className="max-w-2xl overflow-hidden">
-                <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-500/15 text-brand-600 dark:text-brand-400">
-                      <Gift className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">You've got reward points to spend</p>
-                      <p className="text-xs text-muted-foreground">Redeem them for real eco-friendly products in the Eco Store.</p>
-                    </div>
-                  </div>
-                  <Button onClick={() => setSection('sec-store')} className="shrink-0">
-                    <ShoppingCart className="h-4 w-4" /> Visit Eco Store
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <div className="space-y-4 border-t border-border pt-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold text-foreground">Your complaints</h2>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+                  <CardTitle className="flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Your complaints</CardTitle>
                   <select className={cn(FIELD, 'w-32')} value={reportFilter} onChange={(e) => { setReportFilter(e.target.value); closeTrack(); }}>
                     <option value="active">Active</option>
                     <option value="done">Done</option>
                     <option value="removed">Removed</option>
                   </select>
-                </div>
-                <Card>
-                  <CardContent className="pt-5">
-                    {filteredComplaints.length === 0 ? (
-                      <EmptyState icon={Camera} title="No complaints here" desc="Nothing matches this filter yet." />
-                    ) : (
-                      <div className="space-y-2">
-                        {filteredComplaints.map((c) => (
-                          <div key={c.complaintId} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
-                            {c.image ? <img src={c.image} alt="" className="h-10 w-10 rounded-md object-cover" onError={(e) => { e.target.style.display = 'none'; }} /> : <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted"><Camera className="h-4 w-4 text-muted-foreground" /></div>}
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-foreground">{c.complaintId}</p>
-                              <p className="truncate text-xs text-muted-foreground">{c.location}</p>
-                            </div>
-                            <StatusBadge status={c.status} />
-                            <button onClick={() => handleTrack(c.complaintId)} aria-label="Check status" title="Check status" className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground', trackingId === c.complaintId ? 'bg-muted text-foreground' : 'text-muted-foreground')}>
-                              <Eye className="h-4 w-4" />
-                            </button>
+                </CardHeader>
+                <CardContent>
+                  {filteredComplaints.length === 0 ? (
+                    <EmptyState icon={Camera} title="No complaints here" desc="Nothing matches this filter yet." />
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredComplaints.map((c) => (
+                        <div key={c.complaintId} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
+                          {c.image ? <img src={c.image} alt="" className="h-10 w-10 rounded-md object-cover" onError={(e) => { e.target.style.display = 'none'; }} /> : <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted"><Camera className="h-4 w-4 text-muted-foreground" /></div>}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">{c.complaintId}</p>
+                            <p className="truncate text-xs text-muted-foreground">{c.location}</p>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+                          <StatusBadge status={c.status} />
+                          <button onClick={() => handleTrack(c.complaintId)} aria-label="Check status" title="Check status" className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground', trackingId === c.complaintId ? 'bg-muted text-foreground' : 'text-muted-foreground')}>
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           )}
 
           {section === 'sec-scan' && (
-            <div className="space-y-4">
-              <Card className="flex flex-col items-center gap-2 p-8 text-center">
-                <Trash2 className="h-12 w-12 text-signal-500" strokeWidth={1.5} />
-                <h3 className="text-lg font-bold text-foreground">Dustbin full alert</h3>
-                <p className="text-sm text-muted-foreground">Report an overflowing dustbin directly. You'll earn reward points for each scan!</p>
-              </Card>
-              <Card className="max-w-lg">
-                <CardContent className="pt-5">
-                  <form onSubmit={handleScan} className="space-y-3">
-                    <Field label="Dustbin location"><input className={FIELD} placeholder="e.g. Canteen Entrance Gate 3" value={scanLocation} onChange={(e) => setScanLocation(e.target.value)} /></Field>
-                    <Field label="Block">
-                      <select className={FIELD} value={scanBlock} onChange={(e) => setScanBlock(e.target.value)}>
-                        <option value="">Select block…</option>
-                        {BLOCKS.map((b) => <option key={b} value={b}>Block {b}</option>)}
-                      </select>
-                    </Field>
-                    <Button type="submit" variant="signal" size="lg" className="w-full">Send dustbin alert</Button>
-                  </form>
-                </CardContent>
-              </Card>
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Quick scan</h2>
+                <p className="text-sm text-muted-foreground">Report an overflowing dustbin directly — no full complaint form needed.</p>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Card className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-signal-500/10">
+                    <Trash2 className="h-8 w-8 text-signal-500" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">Dustbin full alert</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Earn reward points for every scan you report.</p>
+                  </div>
+                </Card>
+                <Card className="lg:col-span-2">
+                  <CardHeader><CardTitle className="flex items-center gap-2"><Trash2 className="h-4 w-4 text-signal-500" /> Report details</CardTitle></CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleScan} className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Dustbin location"><input className={FIELD} placeholder="e.g. Canteen Entrance Gate 3" value={scanLocation} onChange={(e) => setScanLocation(e.target.value)} /></Field>
+                        <Field label="Block">
+                          <select className={FIELD} value={scanBlock} onChange={(e) => setScanBlock(e.target.value)}>
+                            <option value="">Select block…</option>
+                            {BLOCKS.map((b) => <option key={b} value={b}>Block {b}</option>)}
+                          </select>
+                        </Field>
+                      </div>
+                      <Button type="submit" variant="signal" size="lg" className="w-full sm:w-auto">Send dustbin alert</Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
 
@@ -921,18 +915,29 @@ export default function StudentDashboard() {
                   <img src={trackResult.completionImage} alt="" className="w-full rounded-lg border border-border" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
                 </div>
               )}
-              <div className="space-y-3 border-t border-border pt-3">
+              <div className="border-t border-border pt-4">
                 {[
                   { label: 'Complaint submitted', desc: `Filed on ${fmtDate(trackResult.createdAt)}`, done: true },
                   { label: 'Assigned to collector', desc: 'Collector notified', done: trackResult.status !== 'pending' },
                   { label: trackResult.status === 'rejected' ? 'Rejected' : 'In progress', desc: trackResult.status === 'rejected' ? 'Complaint was denied' : 'Collector working on it', done: ['in-progress', 'completed', 'rejected'].includes(trackResult.status), isError: trackResult.status === 'rejected' },
                   { label: 'Completed', desc: 'Area cleaned & verified', done: trackResult.status === 'completed', hidden: trackResult.status === 'rejected' },
-                ].filter((s) => !s.hidden).map((s, i) => {
+                ].filter((s) => !s.hidden).map((s, i, arr) => {
+                  const isLast = i === arr.length - 1;
                   const Icon = s.isError ? XCircle : s.done ? CheckCircle2 : Clock;
                   return (
                     <div key={i} className="flex gap-3">
-                      <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', s.isError ? 'text-danger-500' : s.done ? 'text-success-500' : 'text-muted-foreground')} />
-                      <div>
+                      <div className="flex flex-col items-center">
+                        <span className={cn(
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2',
+                          s.isError ? 'border-danger-500 bg-danger-500 text-white' : s.done ? 'border-brand-500 bg-brand-500 text-white' : 'border-border bg-card text-muted-foreground'
+                        )}>
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
+                        {!isLast && (
+                          <span className={cn('my-1 w-0.5 flex-1', s.done && !s.isError ? 'bg-brand-500' : 'border-l-2 border-dashed border-border')} />
+                        )}
+                      </div>
+                      <div className={cn('min-w-0', !isLast && 'pb-5')}>
                         <p className={cn('text-sm font-medium', s.isError ? 'text-danger-600 dark:text-danger-400' : s.done ? 'text-foreground' : 'text-muted-foreground')}>{s.label}</p>
                         <p className="text-xs text-muted-foreground">{s.done ? s.desc : 'Pending…'}</p>
                       </div>
