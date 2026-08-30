@@ -154,7 +154,7 @@ export default function AuthPage() {
       <div
         className={cn(
           'relative overflow-hidden bg-zinc-950 transition-all duration-700 ease-in-out',
-          isAuthMode ? 'w-full lg:w-3/5' : 'w-full'
+          isAuthMode ? 'w-full lg:min-w-3/5' : 'min-w-full'
         )}
       >
         <div className="pointer-events-none absolute inset-0 z-0 h-full w-full [&>div]:h-full [&>div]:w-full [&_canvas]:h-full [&_canvas]:w-full [&_canvas]:object-cover">
