@@ -1,30 +1,30 @@
-require('dotenv').config();
+require("dotenv").config();
 
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const connectDB = require('./config/db');
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const connectDB = require("./config/db");
 
 // Route imports
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const complaintRoutes = require('./routes/complaintRoutes');
-const rewardRoutes = require('./routes/rewardRoutes');
-const statsRoutes = require('./routes/statsRoutes');
-const storeRoutes = require('./routes/storeRoutes');
-const orderRoutes = require('./routes/orderRoutes');
-const iotRoutes = require('./routes/iotRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const predictionRoutes = require('./routes/predictionRoutes');
-const eventRoutes = require('./routes/eventRoutes');
-const binRoutes = require('./routes/binRoutes');
-const routeRoutes = require('./routes/routeRoutes');
-const mlRoutes = require('./routes/mlRoutes');
-const incidentRoutes = require('./routes/incidentRoutes');
-const taskRoutes = require('./routes/taskRoutes');
-const simulatorRoutes = require('./routes/simulatorRoutes');
-const sweepingRoutes = require('./routes/sweepingRoutes');
-const cctvRoutes = require('./routes/cctvRoutes');
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+const complaintRoutes = require("./routes/complaintRoutes");
+const rewardRoutes = require("./routes/rewardRoutes");
+const statsRoutes = require("./routes/statsRoutes");
+const storeRoutes = require("./routes/storeRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const iotRoutes = require("./routes/iotRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const predictionRoutes = require("./routes/predictionRoutes");
+const eventRoutes = require("./routes/eventRoutes");
+const binRoutes = require("./routes/binRoutes");
+const routeRoutes = require("./routes/routeRoutes");
+const mlRoutes = require("./routes/mlRoutes");
+const incidentRoutes = require("./routes/incidentRoutes");
+const taskRoutes = require("./routes/taskRoutes");
+const simulatorRoutes = require("./routes/simulatorRoutes");
+const sweepingRoutes = require("./routes/sweepingRoutes");
+const cctvRoutes = require("./routes/cctvRoutes");
 
 const app = express();
 
@@ -34,96 +34,97 @@ connectDB();
 //  CORS — any localhost/127.0.0.1 port allowed in dev (Vite auto-increments
 // the port when 3001 is busy, so a hardcoded port list breaks on every clash),
 // plus the deployed frontend origin(s) below.
-const allowedOrigins = [
-  "https://sustainx-frontend-7xw0.onrender.com",
-];
-const isLocalhost = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+const allowedOrigins = ["https://NagarAI-frontend-7xw0.onrender.com"];
+const isLocalhost = (origin) =>
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || isLocalhost(origin) || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || isLocalhost(origin) || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }),
+);
 
 //  Middleware
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 //  Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 //  Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/complaints', complaintRoutes);
-app.use('/api/rewards', rewardRoutes);
-app.use('/api/stats', statsRoutes);
-app.use('/api/store', storeRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/iot', iotRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/predictions', predictionRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/bins', binRoutes);
-app.use('/api/routes', routeRoutes);
-app.use('/api/ml', mlRoutes);
-app.use('/api/incidents', incidentRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/simulate', simulatorRoutes);
-app.use('/api/sweeping', sweepingRoutes);
-app.use('/api/cctv', cctvRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/complaints", complaintRoutes);
+app.use("/api/rewards", rewardRoutes);
+app.use("/api/stats", statsRoutes);
+app.use("/api/store", storeRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/iot", iotRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/predictions", predictionRoutes);
+app.use("/api/events", eventRoutes);
+app.use("/api/bins", binRoutes);
+app.use("/api/routes", routeRoutes);
+app.use("/api/ml", mlRoutes);
+app.use("/api/incidents", incidentRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/simulate", simulatorRoutes);
+app.use("/api/sweeping", sweepingRoutes);
+app.use("/api/cctv", cctvRoutes);
 
 //  Root route (Render health check)
-app.get('/', (req, res) => {
-  res.send(' SustainX Backend Running Successfully');
+app.get("/", (req, res) => {
+  res.send(" NagarAI Backend Running Successfully");
 });
 
 //  API check
-app.get('/api', (req, res) => {
-  res.send(' SustainX API is running successfully...');
+app.get("/api", (req, res) => {
+  res.send(" NagarAI API is running successfully...");
 });
 
 //  Health check (includes Cloudinary config status for debugging)
-app.get('/api/health', (req, res) => {
-  const cloudinary = require('./config/cloudinary');
+app.get("/api/health", (req, res) => {
+  const cloudinary = require("./config/cloudinary");
   const cfg = cloudinary.config();
   res.json({
-    status: 'OK',
+    status: "OK",
     timestamp: new Date().toISOString(),
     cloudinary: {
       configured: !!(cfg.cloud_name && cfg.api_key && cfg.api_secret),
-      cloud_name: cfg.cloud_name || 'MISSING',
-      api_key: cfg.api_key ? '***' + cfg.api_key.slice(-4) : 'MISSING',
-      api_secret: cfg.api_secret ? '***' + cfg.api_secret.slice(-4) : 'MISSING',
+      cloud_name: cfg.cloud_name || "MISSING",
+      api_key: cfg.api_key ? "***" + cfg.api_key.slice(-4) : "MISSING",
+      api_secret: cfg.api_secret ? "***" + cfg.api_secret.slice(-4) : "MISSING",
     },
-    multer: require('multer/package.json').version,
+    multer: require("multer/package.json").version,
   });
 });
 
 //  Global error handler
 app.use((err, req, res, next) => {
-  if (err.code === 'LIMIT_FILE_SIZE') {
+  if (err.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({
-      message: 'Image too large. Maximum size is 2 MB.'
+      message: "Image too large. Maximum size is 2 MB.",
     });
   }
 
-  if (err.message && err.message.includes('Only image files')) {
+  if (err.message && err.message.includes("Only image files")) {
     return res.status(400).json({
-      message: err.message
+      message: err.message,
     });
   }
 
   console.error(" Error:", err.stack);
 
   res.status(500).json({
-    message: 'Internal Server Error',
-    error: err.message
+    message: "Internal Server Error",
+    error: err.message,
   });
 });
 
