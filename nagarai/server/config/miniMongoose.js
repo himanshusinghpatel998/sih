@@ -424,6 +424,11 @@ function makeModel(name, schema) {
       const vals = Model._all().filter((r) => matchFilter(r, filter)).map((r) => r[field]);
       return [...new Set(vals.map((v) => idStr(v)))];
     }
+
+    static async exists(filter = {}) {
+      const row = Model._all().find((r) => matchFilter(r, filter));
+      return row ? { _id: row._id } : null;
+    }
   }
 
   Object.assign(Model.prototype, schema.methods);

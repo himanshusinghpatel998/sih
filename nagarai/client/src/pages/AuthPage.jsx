@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail,
   MailCheck,
@@ -13,35 +13,35 @@ import {
   X,
   ArrowRight,
   ArrowLeft,
-} from 'lucide-react';
-import { ImageDithering } from '@paper-design/shaders-react';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import ThemeToggle from '../components/ui/ThemeToggle';
-import { Button } from '../components/ui/Button';
-import { forgotPasswordApi } from '../services/api';
-import { cn } from '../lib/utils';
+} from "lucide-react";
+import { ImageDithering } from "@paper-design/shaders-react";
+import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import ThemeToggle from "../components/ui/ThemeToggle";
+import { Button } from "../components/ui/Button";
+import { forgotPasswordApi } from "../services/api";
+import { cn } from "../lib/utils";
 
 const ROLES = [
-  { key: 'student', label: 'Citizen', icon: User },
-  { key: 'collector', label: 'Collector', icon: Sparkles },
-  { key: 'admin', label: 'Admin', icon: Lock },
+  { key: "student", label: "Citizen", icon: User },
+  { key: "collector", label: "Collector", icon: Sparkles },
+  { key: "admin", label: "Admin", icon: Lock },
 ];
 
 const CYCLE_IMAGES = [
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR8YT275QL5_PxPrn1li38W_EayI5hL5Tqq4cPDtOmzvMLKMbZQcM0JfLI&s=10',
-  'https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?auto=format&fit=crop&w=1920&q=80',
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQEublTfIw_VYG4X3JEyYThZ6eW6ktsDSdLqKjDQ6nTJzuSIl9HRZofcq4&s=10',
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR8YT275QL5_PxPrn1li38W_EayI5hL5Tqq4cPDtOmzvMLKMbZQcM0JfLI&s=10",
+  "https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?auto=format&fit=crop&w=1920&q=80",
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQEublTfIw_VYG4X3JEyYThZ6eW6ktsDSdLqKjDQ6nTJzuSIl9HRZofcq4&s=10",
 ];
 
 const transitionVariants = {
   item: {
-    hidden: { opacity: 0, filter: 'blur(12px)', y: 12 },
+    hidden: { opacity: 0, filter: "blur(12px)", y: 12 },
     visible: {
       opacity: 1,
-      filter: 'blur(0px)',
+      filter: "blur(0px)",
       y: 0,
-      transition: { type: 'spring', bounce: 0.3, duration: 1.5 },
+      transition: { type: "spring", bounce: 0.3, duration: 1.5 },
     },
   },
 };
@@ -62,28 +62,28 @@ export default function AuthPage() {
   const { login, register } = useAuth();
   const { showToast } = useToast();
 
-  const [selectedRole, setSelectedRole] = useState('student');
-  const [activeTab, setActiveTab] = useState('login');
-  const [error, setError] = useState('');
+  const [selectedRole, setSelectedRole] = useState("student");
+  const [activeTab, setActiveTab] = useState("login");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAuthMode, setIsAuthMode] = useState(false);
 
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPass, setLoginPass] = useState('');
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPass, setLoginPass] = useState("");
   const [showPass, setShowPass] = useState(false);
 
-  const [suName, setSuName] = useState('');
-  const [suEmail, setSuEmail] = useState('');
-  const [suDept, setSuDept] = useState('');
-  const [suPass, setSuPass] = useState('');
-  const [suConfirm, setSuConfirm] = useState('');
+  const [suName, setSuName] = useState("");
+  const [suEmail, setSuEmail] = useState("");
+  const [suDept, setSuDept] = useState("");
+  const [suPass, setSuPass] = useState("");
+  const [suConfirm, setSuConfirm] = useState("");
 
   const [isForgotOpen, setIsForgotOpen] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotSuccess, setForgotSuccess] = useState('');
-  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState("");
+  const [forgotError, setForgotError] = useState("");
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -94,19 +94,20 @@ export default function AuthPage() {
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
-    setError('');
-    if (role !== 'student') setActiveTab('login');
+    setError("");
+    if (role !== "student") setActiveTab("login");
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
-    if (!loginEmail.trim() || !loginPass) return setError('Please provide email and password');
+    setError("");
+    if (!loginEmail.trim() || !loginPass)
+      return setError("Please provide email and password");
     setLoading(true);
     try {
       await login(loginEmail.trim().toLowerCase(), loginPass, selectedRole);
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -114,15 +115,23 @@ export default function AuthPage() {
 
   const handleStudentSignup = async (e) => {
     e.preventDefault();
-    setError('');
-    if (!suName || !suEmail || !suPass || !suConfirm) return setError('Please fill in all required fields.');
-    if (!/^[^@]+@[^@]+\.[^@]+$/.test(suEmail)) return setError('Please enter a valid email address.');
-    if (suPass.length < 6) return setError('Password must be at least 6 characters.');
-    if (suPass !== suConfirm) return setError('Passwords do not match.');
+    setError("");
+    if (!suName || !suEmail || !suPass || !suConfirm)
+      return setError("Please fill in all required fields.");
+    if (!/^[^@]+@[^@]+\.[^@]+$/.test(suEmail))
+      return setError("Please enter a valid email address.");
+    if (suPass.length < 6)
+      return setError("Password must be at least 6 characters.");
+    if (suPass !== suConfirm) return setError("Passwords do not match.");
     setLoading(true);
     try {
-      await register({ name: suName, email: suEmail, dept: suDept, password: suPass });
-      showToast('100 points credited — welcome bonus!', 'success', 5000);
+      await register({
+        name: suName,
+        email: suEmail,
+        dept: suDept,
+        password: suPass,
+      });
+      showToast("100 points credited — welcome bonus!", "success", 5000);
     } finally {
       setLoading(false);
     }
@@ -130,15 +139,18 @@ export default function AuthPage() {
 
   const handleForgotSubmit = async (e) => {
     e.preventDefault();
-    setForgotError('');
-    setForgotSuccess('');
-    if (!forgotEmail) return setForgotError('Please provide your email.');
+    setForgotError("");
+    setForgotSuccess("");
+    if (!forgotEmail) return setForgotError("Please provide your email.");
     setForgotLoading(true);
     try {
       const res = await forgotPasswordApi({ email: forgotEmail });
       setForgotSuccess(res.data.message);
     } catch (err) {
-      setForgotError(err.response?.data?.message || 'Request failed. Please verify your details.');
+      setForgotError(
+        err.response?.data?.message ||
+          "Request failed. Please verify your details.",
+      );
     } finally {
       setForgotLoading(false);
     }
@@ -153,8 +165,8 @@ export default function AuthPage() {
       {/* Left: landing + shader */}
       <div
         className={cn(
-          'relative overflow-hidden bg-zinc-950 transition-all duration-700 ease-in-out',
-          isAuthMode ? 'w-full lg:min-w-3/5' : 'min-w-full'
+          "relative overflow-hidden bg-zinc-950 transition-all duration-700 ease-in-out",
+          isAuthMode ? "w-full lg:min-w-3/5" : "min-w-full",
         )}
       >
         <div className="pointer-events-none absolute inset-0 z-0 h-full w-full [&>div]:h-full [&>div]:w-full [&_canvas]:h-full [&_canvas]:w-full [&_canvas]:object-cover">
@@ -186,7 +198,9 @@ export default function AuthPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white backdrop-blur-md">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <span className="text-2xl font-bold tracking-tight text-white lg:text-3xl">NagarAI</span>
+              <span className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+                NagarAI
+              </span>
             </motion.div>
 
             {isAuthMode && (
@@ -207,7 +221,7 @@ export default function AuthPage() {
               animate="visible"
               className="flex flex-wrap gap-2"
             >
-              {['Predictive', 'Event-aware', 'Closed-loop'].map((t) => (
+              {["Predictive", "Event-aware", "Closed-loop"].map((t) => (
                 <span
                   key={t}
                   className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-zinc-100 backdrop-blur-md"
@@ -235,8 +249,9 @@ export default function AuthPage() {
               transition={{ delay: 0.15 }}
               className="max-w-xl text-base font-medium leading-relaxed text-zinc-300 sm:text-lg"
             >
-              NagarAI predicts where waste will accumulate before it happens, and coordinates bins,
-              vehicles, workers and sweeping teams to prevent it.
+              NagarAI predicts where waste will accumulate before it happens,
+              and coordinates bins, vehicles, workers and sweeping teams to
+              prevent it.
             </motion.p>
 
             {!isAuthMode && (
@@ -245,7 +260,9 @@ export default function AuthPage() {
                 animate="visible"
                 variants={{
                   hidden: {},
-                  visible: { transition: { staggerChildren: 0.05, delayChildren: 0.75 } },
+                  visible: {
+                    transition: { staggerChildren: 0.05, delayChildren: 0.75 },
+                  },
                 }}
                 className="pt-4"
               >
@@ -268,8 +285,13 @@ export default function AuthPage() {
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-zinc-800/50 pt-6 text-sm font-medium text-zinc-400">
-            <span>Predictive Municipal Sanitation Intelligence</span>
+          <div className="flex items-center justify-between border-t border-zinc-800/50 pt-6 text-sm font-medium text-green-800">
+            <div className="bg-white/90 rounded-2xl">
+              <span className="p-2">
+                Predictive Municipal Sanitation Intelligence
+              </span>
+            </div>
+
             <span>© {new Date().getFullYear()} All rights reserved</span>
           </div>
         </div>
@@ -278,10 +300,10 @@ export default function AuthPage() {
       {/* Right: form panel – slides in */}
       <div
         className={cn(
-          'absolute right-0 top-0 z-30 flex h-full min-h-screen items-center justify-center bg-background px-6 py-12 transition-all duration-700 ease-in-out lg:relative lg:px-12',
+          "absolute right-0 top-0 z-30 flex h-full min-h-screen items-center justify-center bg-background px-6 py-12 transition-all duration-700 ease-in-out lg:relative lg:px-12",
           isAuthMode
-            ? 'w-full translate-x-0 opacity-100 pointer-events-auto lg:w-2/5'
-            : 'pointer-events-none hidden w-full translate-x-full opacity-0 lg:flex lg:w-2/5 lg:translate-x-full'
+            ? "w-full translate-x-0 opacity-100 pointer-events-auto lg:w-2/5"
+            : "pointer-events-none hidden w-full translate-x-full opacity-0 lg:flex lg:w-2/5 lg:translate-x-full",
         )}
       >
         <motion.div
@@ -297,7 +319,11 @@ export default function AuthPage() {
               </div>
               <span className="text-lg font-bold">NagarAI</span>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setIsAuthMode(false)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAuthMode(false)}
+            >
               Close
             </Button>
           </div>
@@ -308,15 +334,17 @@ export default function AuthPage() {
                 key={key}
                 onClick={() => handleRoleSelect(key)}
                 className={cn(
-                  'relative flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors',
-                  selectedRole === key ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  "relative flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors",
+                  selectedRole === key
+                    ? "text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {selectedRole === key && (
                   <motion.div
                     layoutId="role-pill"
                     className="absolute inset-0 rounded-md bg-primary"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
                   />
                 )}
                 <span className="relative flex items-center gap-1.5">
@@ -330,34 +358,50 @@ export default function AuthPage() {
           <div className="mb-6 flex gap-4 border-b border-border text-sm font-medium">
             <button
               onClick={() => {
-                setActiveTab('login');
-                setError('');
+                setActiveTab("login");
+                setError("");
               }}
-              className={cn('relative pb-2.5', activeTab === 'login' ? 'text-foreground' : 'text-muted-foreground')}
+              className={cn(
+                "relative pb-2.5",
+                activeTab === "login"
+                  ? "text-foreground"
+                  : "text-muted-foreground",
+              )}
             >
               Sign In
-              {activeTab === 'login' && (
-                <motion.div layoutId="auth-tab" className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />
+              {activeTab === "login" && (
+                <motion.div
+                  layoutId="auth-tab"
+                  className="absolute inset-x-0 -bottom-px h-0.5 bg-primary"
+                />
               )}
             </button>
-            {selectedRole === 'student' && (
+            {selectedRole === "student" && (
               <button
                 onClick={() => {
-                  setActiveTab('signup');
-                  setError('');
+                  setActiveTab("signup");
+                  setError("");
                 }}
-                className={cn('relative pb-2.5', activeTab === 'signup' ? 'text-foreground' : 'text-muted-foreground')}
+                className={cn(
+                  "relative pb-2.5",
+                  activeTab === "signup"
+                    ? "text-foreground"
+                    : "text-muted-foreground",
+                )}
               >
                 Sign Up
-                {activeTab === 'signup' && (
-                  <motion.div layoutId="auth-tab" className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />
+                {activeTab === "signup" && (
+                  <motion.div
+                    layoutId="auth-tab"
+                    className="absolute inset-x-0 -bottom-px h-0.5 bg-primary"
+                  />
                 )}
               </button>
             )}
           </div>
 
           <AnimatePresence mode="wait">
-            {activeTab === 'login' ? (
+            {activeTab === "login" ? (
               <motion.div
                 key="login"
                 initial={{ opacity: 0, x: 8 }}
@@ -365,8 +409,12 @@ export default function AuthPage() {
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Sign in to continue</p>
+                <h1 className="text-2xl font-bold text-foreground">
+                  Welcome back
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Sign in to continue
+                </p>
 
                 {error && (
                   <p className="mt-3 rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-600 dark:text-danger-400">
@@ -386,7 +434,7 @@ export default function AuthPage() {
                   <div className="relative">
                     <Field
                       icon={Lock}
-                      type={showPass ? 'text' : 'password'}
+                      type={showPass ? "text" : "password"}
                       placeholder="Password"
                       value={loginPass}
                       onChange={(e) => setLoginPass(e.target.value)}
@@ -396,7 +444,11 @@ export default function AuthPage() {
                       onClick={() => setShowPass((s) => !s)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                     >
-                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPass ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                   <div className="text-right">
@@ -404,26 +456,32 @@ export default function AuthPage() {
                       type="button"
                       onClick={() => {
                         setIsForgotOpen(true);
-                        setForgotError('');
-                        setForgotSuccess('');
+                        setForgotError("");
+                        setForgotSuccess("");
                       }}
                       className="text-xs font-medium text-primary hover:underline"
                     >
                       Forgot password?
                     </button>
                   </div>
-                  <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                    {loading && <Loader2 className="h-4 w-4 animate-spin" />} Sign In
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    size="lg"
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}{" "}
+                    Sign In
                   </Button>
                 </form>
 
-                {selectedRole === 'student' && (
+                {selectedRole === "student" && (
                   <p className="mt-5 text-center text-sm text-muted-foreground">
-                    New here?{' '}
+                    New here?{" "}
                     <button
                       onClick={() => {
-                        setActiveTab('signup');
-                        setError('');
+                        setActiveTab("signup");
+                        setError("");
                       }}
                       className="font-medium text-primary hover:underline"
                     >
@@ -431,7 +489,7 @@ export default function AuthPage() {
                     </button>
                   </p>
                 )}
-                {selectedRole === 'collector' && (
+                {selectedRole === "collector" && (
                   <p className="mt-5 text-center text-xs text-muted-foreground">
                     Collector accounts are created by an admin.
                   </p>
@@ -445,8 +503,12 @@ export default function AuthPage() {
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Report issues, track cleanups, earn rewards.</p>
+                <h1 className="text-2xl font-bold text-foreground">
+                  Create your account
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Report issues, track cleanups, earn rewards.
+                </p>
 
                 {error && (
                   <p className="mt-3 rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-600 dark:text-danger-400">
@@ -455,7 +517,12 @@ export default function AuthPage() {
                 )}
 
                 <form onSubmit={handleStudentSignup} className="mt-5 space-y-3">
-                  <Field icon={User} placeholder="Full name" value={suName} onChange={(e) => setSuName(e.target.value)} />
+                  <Field
+                    icon={User}
+                    placeholder="Full name"
+                    value={suName}
+                    onChange={(e) => setSuName(e.target.value)}
+                  />
                   <Field
                     icon={Mail}
                     type="email"
@@ -465,7 +532,7 @@ export default function AuthPage() {
                   />
                   <Field
                     icon={BookOpen}
-                    placeholder="Department (optional)"
+                    placeholder="Area (optional)"
                     value={suDept}
                     onChange={(e) => setSuDept(e.target.value)}
                   />
@@ -483,17 +550,23 @@ export default function AuthPage() {
                     value={suConfirm}
                     onChange={(e) => setSuConfirm(e.target.value)}
                   />
-                  <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                    {loading && <Loader2 className="h-4 w-4 animate-spin" />} Create Account
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    size="lg"
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}{" "}
+                    Create Account
                   </Button>
                 </form>
 
                 <p className="mt-5 text-center text-sm text-muted-foreground">
-                  Already have an account?{' '}
+                  Already have an account?{" "}
                   <button
                     onClick={() => {
-                      setActiveTab('login');
-                      setError('');
+                      setActiveTab("login");
+                      setError("");
                     }}
                     className="font-medium text-primary hover:underline"
                   >
@@ -504,7 +577,9 @@ export default function AuthPage() {
             )}
           </AnimatePresence>
 
-          <p className="mt-8 text-center text-xs text-muted-foreground">NagarAI v1.0 · Predictive Municipal Sanitation</p>
+          <p className="mt-8 text-center text-xs text-muted-foreground">
+            NagarAI v1.0 · Predictive Municipal Sanitation
+          </p>
         </motion.div>
       </div>
 
@@ -525,22 +600,34 @@ export default function AuthPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">Reset password</h3>
-                <button onClick={() => setIsForgotOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <h3 className="font-semibold text-foreground">
+                  Reset password
+                </h3>
+                <button
+                  onClick={() => setIsForgotOpen(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
               {forgotSuccess ? (
                 <div className="text-center">
                   <MailCheck className="mx-auto h-10 w-10 text-brand-500" />
-                  <p className="mt-3 text-sm text-muted-foreground">{forgotSuccess}</p>
-                  <Button className="mt-4 w-full" onClick={() => setIsForgotOpen(false)}>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {forgotSuccess}
+                  </p>
+                  <Button
+                    className="mt-4 w-full"
+                    onClick={() => setIsForgotOpen(false)}
+                  >
                     Close
                   </Button>
                 </div>
               ) : (
                 <form onSubmit={handleForgotSubmit} className="space-y-3">
-                  <p className="text-xs text-muted-foreground">We&apos;ll send reset instructions to your registered email.</p>
+                  <p className="text-xs text-muted-foreground">
+                    We&apos;ll send reset instructions to your registered email.
+                  </p>
                   {forgotError && (
                     <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-xs text-danger-600 dark:text-danger-400">
                       {forgotError}
@@ -553,8 +640,15 @@ export default function AuthPage() {
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                   />
-                  <Button type="submit" className="w-full" disabled={forgotLoading}>
-                    {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />} Send reset instructions
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={forgotLoading}
+                  >
+                    {forgotLoading && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}{" "}
+                    Send reset instructions
                   </Button>
                 </form>
               )}

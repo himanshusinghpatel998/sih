@@ -90,7 +90,7 @@ const evaluateLocation = (p) => {
   const distM = nearestBinDistanceM(location, bins);
   const predictedLDay = predictedKgDay * 1.0; // kg ≈ L demo approximation
 
-  const predictedWaste = normWaste(predictedKgDay, zone ? zone.footfall || 1000 : 1000);
+  const predictedWaste = normWaste(predictedKgDay, 1000); // normalize against a nominal daily kg reference
   const footfall = normFootfall(zone ? zone.footfall || 0 : 0);
   const foodBusiness = normFood(nearbyFood);
   const overflowHistory = normOverflow(overflowEvents);

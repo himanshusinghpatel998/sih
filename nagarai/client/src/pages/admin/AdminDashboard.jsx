@@ -31,7 +31,7 @@ const NAV_ITEMS = [
   { id: 'sec-dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: 'sec-store-orders', label: 'Store Orders', icon: <ShoppingBag className="h-4 w-4" /> },
   { id: 'sec-collectors', label: 'Manage Collectors', icon: <Truck className="h-4 w-4" /> },
-  { id: 'sec-users', label: 'Manage Students', icon: <GraduationCap className="h-4 w-4" /> },
+  { id: 'sec-users', label: 'Manage Citizens', icon: <GraduationCap className="h-4 w-4" /> },
   { id: 'sec-rewards', label: 'Give Rewards', icon: <Trophy className="h-4 w-4" /> },
   { id: 'sec-appearance', label: 'Appearance', icon: <Palette className="h-4 w-4" /> },
   { id: 'sec-profile', label: 'Profile', icon: <Lock className="h-4 w-4" /> },
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
     if (!csName || !csEmail || !csPass) return showToast('Please fill all required fields.', 'warning');
     try {
       await createUser({ role: 'student', name: csName, email: csEmail, dept: csDept, password: csPass, block: 'A' });
-      toast.success(`Student ${csName} created`);
+      toast.success(`Citizen ${csName} created`);
       setCreateStudentModalOpen(false); setCsName(''); setCsEmail(''); setCsDept(''); setCsPass('');
       loadStudentUsers(); loadStats(); loadStudents();
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
@@ -148,13 +148,13 @@ export default function AdminDashboard() {
     e.preventDefault();
     const activity = rewActivity === 'Custom' ? rewCustom.trim() : rewActivity;
     const pts = parseInt(rewPoints);
-    if (!rewStudentId) return showToast('Please select a student.', 'warning');
+    if (!rewStudentId) return showToast('Please select a citizen.', 'warning');
     if (!activity) return showToast('Please specify an activity.', 'warning');
     if (!pts || pts < 1) return showToast('Please enter valid points (≥ 1).', 'warning');
     try {
       await addReward({ user: rewStudentId, activity, points: pts });
       const stu = students.find((s) => s._id === rewStudentId);
-      toast.success(`Awarded ${pts} pts to ${stu?.name || 'student'}`);
+      toast.success(`Awarded ${pts} pts to ${stu?.name || 'citizen'}`);
       setRewStudentId(''); setRewActivity('Waste Photo Complaint'); setRewCustom(''); setRewPoints('');
       loadAllRewards(); loadStudents(); loadStats();
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
@@ -207,7 +207,7 @@ export default function AdminDashboard() {
                 <StatCard icon={Clock} value={stats.pending} label="Pending" />
                 <StatCard icon={RefreshCw} value={stats.progress} label="In progress" />
                 <StatCard icon={CheckCircle2} value={stats.done} label="Resolved" />
-                <StatCard icon={GraduationCap} value={stats.students} label="Students" />
+                <StatCard icon={GraduationCap} value={stats.students} label="Citizens" />
                 <StatCard icon={Truck} value={stats.collectors} label="Collectors" />
                 <StatCard icon={ShoppingBag} value={stats.orderAnalytics?.total || 0} label="Store sales" />
                 <StatCard icon={TrendingUp} value={`${stats.orderAnalytics?.completionRate || 0}%`} label="Completion rate" />
@@ -243,7 +243,7 @@ export default function AdminDashboard() {
                 <CardHeader><CardTitle>All complaints</CardTitle></CardHeader>
                 <CardContent className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr><Th>ID</Th><Th>Photo</Th><Th>Student</Th><Th>Location</Th><Th>Block</Th><Th>Assigned</Th><Th>Date</Th><Th>Status</Th></tr></thead>
+                    <thead><tr><Th>ID</Th><Th>Photo</Th><Th>Citizen</Th><Th>Location</Th><Th>Block</Th><Th>Assigned</Th><Th>Date</Th><Th>Status</Th></tr></thead>
                     <tbody className="divide-y divide-border">
                       {allComplaints.length === 0 ? <EmptyRow span={8}>No complaints yet.</EmptyRow> : allComplaints.map((c) => (
                         <tr key={c.complaintId}>
@@ -364,15 +364,15 @@ export default function AdminDashboard() {
           {section === 'sec-users' && (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-foreground">Manage students</h2>
-                <Button onClick={() => setCreateStudentModalOpen(true)}><Plus className="h-4 w-4" /> Create student</Button>
+                <h2 className="text-lg font-semibold text-foreground">Manage citizens</h2>
+                <Button onClick={() => setCreateStudentModalOpen(true)}><Plus className="h-4 w-4" /> Create citizen</Button>
               </div>
               <Card>
                 <CardContent className="overflow-x-auto pt-5">
                   <table className="w-full">
-                    <thead><tr><Th>Name</Th><Th>Email</Th><Th>Department</Th><Th>Reward pts</Th><Th>Actions</Th></tr></thead>
+                    <thead><tr><Th>Name</Th><Th>Email</Th><Th>Area</Th><Th>Reward pts</Th><Th>Actions</Th></tr></thead>
                     <tbody className="divide-y divide-border">
-                      {studentUsers.length === 0 ? <EmptyRow span={5}>No students found.</EmptyRow> : studentUsers.map((u) => (
+                      {studentUsers.length === 0 ? <EmptyRow span={5}>No citizens found.</EmptyRow> : studentUsers.map((u) => (
                         <tr key={u._id}>
                           <Td className="font-medium">{u.name}</Td>
                           <Td className="text-muted-foreground">{u.email}</Td>
@@ -397,9 +397,9 @@ export default function AdminDashboard() {
               <Card className="max-w-lg">
                 <CardContent className="space-y-3 pt-5">
                   <form onSubmit={handleAwardReward} className="space-y-3">
-                    <Field label="Select student">
+                    <Field label="Select citizen">
                       <select className={FIELD} value={rewStudentId} onChange={(e) => setRewStudentId(e.target.value)}>
-                        <option value="">Choose a student…</option>
+                        <option value="">Choose a citizen…</option>
                         {students.map((s) => <option key={s._id} value={s._id}>{s.name} ({s.email}) — {s.rewardPoints || 0} pts</option>)}
                       </select>
                     </Field>
@@ -424,7 +424,7 @@ export default function AdminDashboard() {
                 <CardHeader><CardTitle>All rewards distributed</CardTitle></CardHeader>
                 <CardContent className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr><Th>Student</Th><Th>Activity</Th><Th>Points</Th><Th>Date</Th></tr></thead>
+                    <thead><tr><Th>Citizen</Th><Th>Activity</Th><Th>Points</Th><Th>Date</Th></tr></thead>
                     <tbody className="divide-y divide-border">
                       {allRewards.length === 0 ? <EmptyRow span={4}>No rewards distributed yet.</EmptyRow> : allRewards.map((r, i) => (
                         <tr key={i}>
@@ -507,15 +507,15 @@ export default function AdminDashboard() {
         </form>
       </Modal>
 
-      <Modal isOpen={createStudentModalOpen} onClose={() => setCreateStudentModalOpen(false)} title="Create new student">
+      <Modal isOpen={createStudentModalOpen} onClose={() => setCreateStudentModalOpen(false)} title="Create new citizen">
         <form onSubmit={handleCreateStudent} className="space-y-3 p-5">
           <Field label="Full name"><input className={FIELD} placeholder="Full name" value={csName} onChange={(e) => setCsName(e.target.value)} /></Field>
-          <Field label="Email"><input className={FIELD} type="email" placeholder="email@campus.edu" value={csEmail} onChange={(e) => setCsEmail(e.target.value)} /></Field>
-          <Field label="Department"><input className={FIELD} placeholder="e.g. Computer Science" value={csDept} onChange={(e) => setCsDept(e.target.value)} /></Field>
+          <Field label="Email"><input className={FIELD} type="email" placeholder="name@example.com" value={csEmail} onChange={(e) => setCsEmail(e.target.value)} /></Field>
+          <Field label="Area (optional)"><input className={FIELD} placeholder="e.g. Old Market" value={csDept} onChange={(e) => setCsDept(e.target.value)} /></Field>
           <Field label="Password"><input className={FIELD} type="password" placeholder="Initial password" value={csPass} onChange={(e) => setCsPass(e.target.value)} /></Field>
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={() => setCreateStudentModalOpen(false)}>Cancel</Button>
-            <Button type="submit" className="flex-1">Create student</Button>
+            <Button type="submit" className="flex-1">Create citizen</Button>
           </div>
         </form>
       </Modal>
@@ -529,7 +529,7 @@ export default function AdminDashboard() {
                 <h3 className="font-semibold text-foreground">{viewUserData.name}</h3>
                 <p className="text-sm text-muted-foreground">{viewUserData.email}</p>
                 <div className="mt-1 flex flex-wrap gap-1.5">
-                  <Badge>{viewUserData.role === 'collector' ? <><Truck className="h-3 w-3" /> Collector</> : <><GraduationCap className="h-3 w-3" /> Student</>}</Badge>
+                  <Badge>{viewUserData.role === 'collector' ? <><Truck className="h-3 w-3" /> Collector</> : <><GraduationCap className="h-3 w-3" /> Citizen</>}</Badge>
                   {viewUserData.role === 'collector' && viewUserData.block && <Badge variant="default"><Building2 className="h-3 w-3" /> Block {viewUserData.block}</Badge>}
                   {viewUserData.dept && <Badge variant="muted">{viewUserData.dept}</Badge>}
                   <Badge variant="warning"><Trophy className="h-3 w-3" /> {viewUserData.rewardPoints || 0} pts</Badge>
