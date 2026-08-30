@@ -33,4 +33,4 @@ server/data/ml/*
 !server/data/ml/.gitkeep
 
 # Local SQLite database (see server/config/miniMongoose.js)
-server/data/nagarai.sqlite*
+# server/data/nagarai.sqlite*

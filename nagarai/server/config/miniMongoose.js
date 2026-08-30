@@ -433,6 +433,10 @@ function makeModel(name, schema) {
 
   Object.assign(Model.prototype, schema.methods);
   Object.assign(Model, schema.statics);
+  // Mongoose exposes `.id` as a virtual alias for `_id` on documents.
+  Object.defineProperty(Model.prototype, 'id', {
+    get() { return this._id != null ? String(this._id) : this._id; },
+  });
   Model.modelName = name;
   return Model;
 }
