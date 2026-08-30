@@ -189,21 +189,20 @@ const selectDueBins = async ({ weather = 'clear', onlyHighRisk = false, minRisk 
   return due;
 };
 
-// Shared by generate/deploy: predict → split critical (mandatory route
-// nodes, risk >= 90) vs opportunistic (picked up along the way, risk 70-89)
-// → size a truck fleet to the critical load → solve routes on critical bins
-// only → fold opportunistic bins into whichever route already passes near
-// them, capacity permitting.
+// Shared by generate/deploy: predict → every due bin (red/critical ≥90 AND
+// yellow/opportunistic 70-89) is a node the routing algorithm itself
+// reasons about — not just the critical ones with yellow bins bolted on
+// after the fact. Critical bins are listed first so the solver/greedy
+// heuristic prioritizes them when capacity is tight. The fleet is sized off
+// the *combined* demand of every node, so it naturally dispatches 2+ trucks
+// once total load exceeds one truck's tier — a single red bin's worth of
+// waste sends one small truck out; a city-wide sweep of red+yellow bins
+// sends however many right-sized trucks the total load actually needs.
 const planRoutes = async ({ weather, maxStopsPerRoute }) => {
   const due = await selectDueBins({ weather });
   const critical = due.filter((d) => d.tier === 'critical');
   const opportunistic = due.filter((d) => d.tier === 'opportunistic');
-
-  // No bin is at critical risk yet — nothing forces a truck out. Fall back
-  // to routing the opportunistic set directly so the system isn't idle
-  // just because nothing has crossed 90 yet.
-  const nodeBins = critical.length ? critical : opportunistic;
-  const extraBins = critical.length ? opportunistic : [];
+  const nodeBins = [...critical, ...opportunistic];
 
   if (!nodeBins.length) {
     return { due: [], critical, opportunistic, routes: [], unassigned: [] };
@@ -222,7 +221,12 @@ const planRoutes = async ({ weather, maxStopsPerRoute }) => {
     maxStopsPerRoute: maxStopsPerRoute || 30,
   });
 
-  const stillUnassignedOpportunistic = insertOpportunisticBins(routes, extraBins);
+  // Fallback only: if the solver itself couldn't fit some yellow bins
+  // (capacity/threshold), still try to slot them into a route passing
+  // within range before giving up on them entirely.
+  const unassignedOpportunistic = unassigned.filter((d) => d.tier === 'opportunistic');
+  const unassignedCritical = unassigned.filter((d) => d.tier === 'critical');
+  const stillUnassignedOpportunistic = insertOpportunisticBins(routes, unassignedOpportunistic);
 
   return {
     depot,
@@ -230,7 +234,7 @@ const planRoutes = async ({ weather, maxStopsPerRoute }) => {
     critical,
     opportunistic,
     routes,
-    unassigned: [...unassigned, ...stillUnassignedOpportunistic],
+    unassigned: [...unassignedCritical, ...stillUnassignedOpportunistic],
     engine,
     rawResult,
   };

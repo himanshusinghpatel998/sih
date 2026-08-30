@@ -143,5 +143,7 @@ export const deploySweeping = (data = {}) => API.post('/sweeping/deploy', data);
 // CCTV (heuristic detection MVP)
 export const detectCctvFrame = (formData) =>
   API.post('/cctv/detect', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const detectCctvCrowd = (formData) =>
+  API.post('/cctv/detect-crowd', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
 export default API;

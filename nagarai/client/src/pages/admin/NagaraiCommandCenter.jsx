@@ -13,13 +13,14 @@ import API from '../../services/api';
 import {
   runPredictions, getEvents, getBins, optimizeBins, getBinRecommendations,
   generateRoutes, deployRoutes, advanceDay, getWorkforce, getIncidents, getMLStatus,
-  analyzeSweeping, getSweepingPlan, deploySweeping, detectCctvFrame,
+  analyzeSweeping, getSweepingPlan, deploySweeping, detectCctvFrame, detectCctvCrowd,
 } from '../../services/api';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import AnimatedStat from '../../components/ui/AnimatedStat';
 import TabTransition from '../../components/ui/TabTransition';
+import { Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectLabel, SelectItem } from '../../components/ui/Select';
 import { cn } from '../../lib/utils';
 import { CITY_NAME, CITY_CENTER, CITY_DEFAULT_ZOOM } from '../../lib/cityConfig';
 
@@ -59,6 +60,55 @@ function Td({ children, className }) {
   return <td className={cn('px-3 py-2 text-sm', className)}>{children}</td>;
 }
 
+function Field({ label, children }) {
+  return (
+    <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+      {label}
+      {children}
+    </label>
+  );
+}
+
+// Matches services/eventEngine.js's EVENT_BASE_MULTIPLIER keys exactly —
+// the simulator dropdown used to only expose 5 of these 11, so picking
+// "wedding" or "political" etc. was silently impossible even though the
+// backend has a real waste multiplier calibrated for them. Grouped by scale
+// so the list reads as a spectrum instead of an alphabetical dump.
+// Fixed simulator assumption — not user-tunable. The point of the What-If
+// tool is projecting an event/attendance/weather scenario, not tuning ops
+// parameters; a realistic 6h collection cadence is the baseline it projects
+// against either way.
+const SIM_COLLECTION_FREQUENCY_HRS = 6;
+
+const EVENT_TYPE_GROUPS = [
+  {
+    label: 'Large-scale (2.0×–3.0×)',
+    options: [
+      { value: 'concert', label: 'Concert', mult: '3.0×' },
+      { value: 'festival', label: 'Festival', mult: '2.5×' },
+      { value: 'sports', label: 'Sports match', mult: '2.2×' },
+      { value: 'political', label: 'Political rally', mult: '2.0×' },
+      { value: 'fair', label: 'Fair / exhibition', mult: '2.0×' },
+    ],
+  },
+  {
+    label: 'Community-scale (1.5×–1.8×)',
+    options: [
+      { value: 'wedding', label: 'Wedding', mult: '1.8×' },
+      { value: 'university', label: 'University event', mult: '1.8×' },
+      { value: 'religious', label: 'Religious gathering', mult: '1.6×' },
+      { value: 'market', label: 'Special market day', mult: '1.5×' },
+    ],
+  },
+  {
+    label: 'Minor (1.2×–1.3×)',
+    options: [
+      { value: 'other', label: 'Other', mult: '1.3×' },
+      { value: 'holiday', label: 'Public holiday', mult: '1.2×' },
+    ],
+  },
+];
+
 function DirtBar({ score }) {
   const tone = score >= 60 ? 'bg-danger-500' : score >= 35 ? 'bg-signal-500' : 'bg-success-500';
   return (
@@ -91,13 +141,14 @@ export default function NagaraiCommandCenter() {
   const [busy, setBusy] = useState('');
   const [predTable, setPredTable] = useState([]);
   const [simResult, setSimResult] = useState(null);
-  const [simForm, setSimForm] = useState({ eventType: '', expectedAttendance: 0, weather: 'clear', hours: 24, collectionFrequencyHrs: 0 });
+  const [simForm, setSimForm] = useState({ eventType: '', zone: '', expectedAttendance: '', weather: 'clear', hours: '24' });
   const [sweepNeeds, setSweepNeeds] = useState([]);
   const [sweepPlan, setSweepPlan] = useState(null);
   const [cctvForm, setCctvForm] = useState({ lat: String(CITY_CENTER.lat), lng: String(CITY_CENTER.lng), file: null, preview: null });
   const [routeMeta, setRouteMeta] = useState({ engine: null, workerAssignmentEngine: null, depot: null, criticalBins: 0, opportunisticBins: 0 });
   const [dayResult, setDayResult] = useState(null);
   const [cctvResult, setCctvResult] = useState(null);
+  const [crowdResult, setCrowdResult] = useState(null);
 
   const loadCity = useCallback(async () => {
     try {
@@ -205,7 +256,14 @@ export default function NagaraiCommandCenter() {
   const runSimulation = async () => {
     setBusy('sim'); setErr(null); setSimResult(null);
     try {
-      const res = await API.post('/simulate', simForm);
+      const res = await API.post('/simulate', {
+        eventType: simForm.eventType,
+        expectedAttendance: parseInt(simForm.expectedAttendance, 10) || 0,
+        weather: simForm.weather,
+        hours: parseInt(simForm.hours, 10) || 24,
+        zones: simForm.zone ? [simForm.zone] : [],
+        collectionFrequencyHrs: SIM_COLLECTION_FREQUENCY_HRS,
+      });
       setSimResult(res.data);
     } catch (e) { setErr('Simulation failed.'); toast.error('Simulation failed'); }
     setBusy('');
@@ -259,6 +317,23 @@ export default function NagaraiCommandCenter() {
       if (res.data.detection.garbageDetected) toast.warning('Garbage detected — incident auto-created');
       else toast.success('Frame clear — no incident created');
     } catch (e) { setErr('CCTV detection failed.'); toast.error('CCTV detection failed'); }
+    setBusy('');
+  };
+
+  // Same uploaded frame, different question: not "is there litter" but "how
+  // many people are here, and is that crowded" — a separate YOLO pass that
+  // only looks at the 'person' class (the litter detector ignores it).
+  const handleCrowdDetect = async () => {
+    if (!cctvForm.file) return toast.error('Choose an image first');
+    setBusy('crowd'); setErr(null); setCrowdResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('image', cctvForm.file);
+      const res = await detectCctvCrowd(fd);
+      setCrowdResult(res.data);
+      if (res.data.isCrowded) toast.warning(`Crowded — ${res.data.peopleCount} people detected (${res.data.crowdLevel})`);
+      else toast.success(`${res.data.peopleCount} people detected (${res.data.crowdLevel})`);
+    } catch (e) { setErr('Crowd detection failed.'); toast.error('Crowd detection failed'); }
     setBusy('');
   };
 
@@ -693,23 +768,72 @@ export default function NagaraiCommandCenter() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><FlaskConical className="h-4 w-4" /> What-If Simulator</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Project bin fill forward under a hypothetical scenario — "if a 25,000-person festival hits Zone 3 with no
+              extra collection, when does the first bin overflow, and how much staff would we need to keep up?" Doesn't
+              touch real data; purely a projection.
+            </p>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-              <select className="rounded-lg border border-border bg-card px-3 py-2 text-sm" value={simForm.eventType} onChange={(e) => setSimForm({ ...simForm, eventType: e.target.value })}>
-                <option value="">No event</option>
-                <option value="festival">Festival</option>
-                <option value="concert">Concert</option>
-                <option value="sports">Sports</option>
-                <option value="fair">Fair</option>
-                <option value="market">Market</option>
-              </select>
-              <input className="rounded-lg border border-border bg-card px-3 py-2 text-sm" type="number" placeholder="Expected attendance" value={simForm.expectedAttendance} onChange={(e) => setSimForm({ ...simForm, expectedAttendance: parseInt(e.target.value) || 0 })} />
-              <select className="rounded-lg border border-border bg-card px-3 py-2 text-sm" value={simForm.weather} onChange={(e) => setSimForm({ ...simForm, weather: e.target.value })}>
-                <option value="clear">Clear</option>
-                <option value="rain">Rain</option>
-                <option value="heavy_rain">Heavy rain</option>
-              </select>
-              <input className="rounded-lg border border-border bg-card px-3 py-2 text-sm" type="number" min="1" max="168" placeholder="Hours" value={simForm.hours} onChange={(e) => setSimForm({ ...simForm, hours: parseInt(e.target.value) || 24 })} />
-              <input className="rounded-lg border border-border bg-card px-3 py-2 text-sm" type="number" min="0" max="24" placeholder="Collection freq (hrs)" value={simForm.collectionFrequencyHrs} onChange={(e) => setSimForm({ ...simForm, collectionFrequencyHrs: parseInt(e.target.value) || 0 })} />
+              <Field label="Event type">
+                <Select
+                  value={simForm.eventType || 'none'}
+                  onValueChange={(v) => setSimForm({ ...simForm, eventType: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="No event" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No event (baseline day)</SelectItem>
+                    {EVENT_TYPE_GROUPS.map((group) => (
+                      <SelectGroup key={group.label}>
+                        <SelectLabel>{group.label}</SelectLabel>
+                        {group.options.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label} ({opt.mult})</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Zone the event is in">
+                <Select
+                  value={simForm.zone || 'all'}
+                  onValueChange={(v) => setSimForm({ ...simForm, zone: v === 'all' ? '' : v })}
+                  disabled={!simForm.eventType}
+                >
+                  <SelectTrigger><SelectValue placeholder="All zones" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All zones (citywide)</SelectItem>
+                    {workforce.map((w) => (
+                      <SelectItem key={w.zone} value={w.zone}>{w.zone} — {w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Expected attendance">
+                <input
+                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                  type="text" inputMode="numeric" placeholder="e.g. 25000"
+                  value={simForm.expectedAttendance}
+                  onChange={(e) => setSimForm({ ...simForm, expectedAttendance: e.target.value.replace(/[^0-9]/g, '') })}
+                />
+              </Field>
+              <Field label="Weather during event">
+                <Select value={simForm.weather} onValueChange={(v) => setSimForm({ ...simForm, weather: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="clear">Clear</SelectItem>
+                    <SelectItem value="rain">Light rain (slows litter buildup)</SelectItem>
+                    <SelectItem value="heavy_rain">Heavy rain (slows litter buildup more)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Simulation horizon (hours)">
+                <input
+                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                  type="text" inputMode="numeric" placeholder="24"
+                  value={simForm.hours}
+                  onChange={(e) => setSimForm({ ...simForm, hours: e.target.value.replace(/[^0-9]/g, '') })}
+                />
+              </Field>
             </div>
             <Button onClick={runSimulation} disabled={busy === 'sim'}>{busy === 'sim' ? 'Simulating…' : 'Run Simulation'}</Button>
 
@@ -856,7 +980,11 @@ export default function NagaraiCommandCenter() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Upload a frame from a fixed camera location. Runs a YOLOv8n object-density detector via ml-service (falls back to a pixel-clutter heuristic if that service is unreachable — check "Method" below to see which one ran) — it flags visual clutter and auto-creates an incident, demonstrating the full closed-loop flow.
+                Upload a frame from a fixed camera location, then run either check (or both) on the same image.
+                <strong> Check for garbage</strong> runs a YOLOv8n object-density detector (falls back to a pixel-clutter
+                heuristic if ml-service is unreachable — check "Method" below) and auto-creates an incident on a hit.
+                <strong> Check crowd density</strong> runs a separate YOLOv8n pass that only counts people, classifying
+                how busy the scene is — useful for spotting an unplanned gathering before it shows up as a waste spike.
               </p>
               <input
                 type="file" accept="image/*"
@@ -871,42 +999,80 @@ export default function NagaraiCommandCenter() {
                 <input className="rounded-lg border border-border bg-card px-3 py-2 text-sm" placeholder="Camera latitude" value={cctvForm.lat} onChange={(e) => setCctvForm((f) => ({ ...f, lat: e.target.value }))} />
                 <input className="rounded-lg border border-border bg-card px-3 py-2 text-sm" placeholder="Camera longitude" value={cctvForm.lng} onChange={(e) => setCctvForm((f) => ({ ...f, lng: e.target.value }))} />
               </div>
-              <Button onClick={handleCctvDetect} disabled={busy === 'cctv'}>{busy === 'cctv' ? 'Analyzing…' : 'Analyze frame'}</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handleCctvDetect} disabled={busy === 'cctv'}>{busy === 'cctv' ? 'Analyzing…' : 'Check for garbage'}</Button>
+                <Button variant="outline" onClick={handleCrowdDetect} disabled={busy === 'crowd'}>{busy === 'crowd' ? 'Counting…' : 'Check crowd density'}</Button>
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Detection result</CardTitle></CardHeader>
-            <CardContent>
-              {!cctvResult && <p className="text-sm text-muted-foreground">Analyze a frame to see the AI detection output.</p>}
-              {cctvResult && (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={cctvResult.detection.garbageDetected ? 'danger' : 'success'}>
-                      {cctvResult.detection.garbageDetected ? 'Garbage detected' : 'Clear'}
-                    </Badge>
-                    <Badge variant="muted">{Math.round(cctvResult.detection.confidence * 100)}% confidence</Badge>
-                  </div>
-                  <dl className="grid grid-cols-2 gap-2 text-sm">
-                    <dt className="text-muted-foreground">Severity</dt><dd>{cctvResult.detection.severity}</dd>
-                    <dt className="text-muted-foreground">Estimated area</dt><dd>{cctvResult.detection.estimatedAreaM2} m²</dd>
-                    <dt className="text-muted-foreground">Method</dt>
-                    <dd>
-                      <Badge variant={cctvResult.detection.method?.startsWith('yolo') ? 'success' : 'muted'} className="text-xs">
-                        {cctvResult.detection.method?.startsWith('yolo') ? 'YOLOv8n (live)' : 'Heuristic (fallback)'}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>Garbage detection</CardTitle></CardHeader>
+              <CardContent>
+                {!cctvResult && <p className="text-sm text-muted-foreground">Analyze a frame to see the AI detection output.</p>}
+                {cctvResult && (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={cctvResult.detection.garbageDetected ? 'danger' : 'success'}>
+                        {cctvResult.detection.garbageDetected ? 'Garbage detected' : 'Clear'}
                       </Badge>
-                    </dd>
-                  </dl>
-                  {cctvResult.incident && (
-                    <div className="rounded-lg bg-muted p-3 text-sm">
-                      Incident <span className="font-mono-data font-medium">{cctvResult.incident.incidentId}</span> created, priority {cctvResult.incident.priority}
-                      {cctvResult.task && <> — task <span className="font-mono-data">{cctvResult.task.taskId}</span> dispatched.</>}
+                      <Badge variant="muted">{Math.round(cctvResult.detection.confidence * 100)}% confidence</Badge>
                     </div>
-                  )}
-                </motion.div>
-              )}
-            </CardContent>
-          </Card>
+                    <dl className="grid grid-cols-2 gap-2 text-sm">
+                      <dt className="text-muted-foreground">Severity</dt><dd>{cctvResult.detection.severity}</dd>
+                      <dt className="text-muted-foreground">Estimated area</dt><dd>{cctvResult.detection.estimatedAreaM2} m²</dd>
+                      <dt className="text-muted-foreground">Method</dt>
+                      <dd>
+                        <Badge variant={cctvResult.detection.method?.startsWith('yolo') ? 'success' : 'muted'} className="text-xs">
+                          {cctvResult.detection.method?.startsWith('yolo') ? 'YOLOv8n (live)' : 'Heuristic (fallback)'}
+                        </Badge>
+                      </dd>
+                    </dl>
+                    {cctvResult.incident && (
+                      <div className="rounded-lg bg-muted p-3 text-sm">
+                        Incident <span className="font-mono-data font-medium">{cctvResult.incident.incidentId}</span> created, priority {cctvResult.incident.priority}
+                        {cctvResult.task && <> — task <span className="font-mono-data">{cctvResult.task.taskId}</span> dispatched.</>}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle>Crowd density</CardTitle></CardHeader>
+              <CardContent>
+                {!crowdResult && <p className="text-sm text-muted-foreground">Check crowd density to count people in the frame and classify how busy it is.</p>}
+                {crowdResult && (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          crowdResult.crowdLevel === 'crowded' ? 'danger'
+                            : crowdResult.crowdLevel === 'busy' ? 'warning'
+                            : crowdResult.crowdLevel === 'moderate' ? 'muted'
+                            : 'success'
+                        }
+                      >
+                        {crowdResult.crowdLevel}
+                      </Badge>
+                      <Badge variant="muted">{crowdResult.peopleCount} people</Badge>
+                      {crowdResult.isCrowded && <Badge variant="danger">Crowded</Badge>}
+                    </div>
+                    <dl className="grid grid-cols-2 gap-2 text-sm">
+                      <dt className="text-muted-foreground">Frame coverage</dt><dd>{Math.round(crowdResult.coverageRatio * 100)}%</dd>
+                      <dt className="text-muted-foreground">Method</dt>
+                      <dd><Badge variant="success" className="text-xs">YOLOv8n (live)</Badge></dd>
+                    </dl>
+                    <p className="text-xs text-muted-foreground">
+                      empty → sparse (≤5) → moderate (≤15) → busy (≤30, or a packed frame) → crowded (30+)
+                    </p>
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
       </TabTransition>

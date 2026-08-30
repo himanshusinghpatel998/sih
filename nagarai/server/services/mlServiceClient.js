@@ -52,6 +52,21 @@ const detectFrame = async (buffer, filename = 'frame.jpg') => {
   return data;
 };
 
+// CCTV frame → YOLOv8n person-only detection for crowd density (count +
+// classification), separate from detectFrame's clutter/litter detection.
+const detectCrowd = async (buffer, filename = 'frame.jpg') => {
+  const FormData = require('form-data');
+  const fd = new FormData();
+  fd.append('file', buffer, { filename, contentType: 'image/jpeg' });
+  const { data } = await client.post('/detect/crowd', fd, {
+    headers: fd.getHeaders(),
+    timeout: TIMEOUT_MS,
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+  });
+  return data;
+};
+
 // ─── Routing (wraps ml/routing/* via ml-service) ──────────────────────────
 
 const getDemandScores = async (bins) => {
@@ -98,6 +113,7 @@ module.exports = {
   predictBin,
   predictBatch,
   detectFrame,
+  detectCrowd,
   getDemandScores,
   optimizeRoutes,
   getBinRecommendations,

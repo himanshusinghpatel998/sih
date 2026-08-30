@@ -109,6 +109,17 @@ async def detect_frame(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@app.post("/detect/crowd")
+async def detect_crowd(file: UploadFile = File(...)):
+    from detector import detect_crowd_bytes
+
+    data = await file.read()
+    try:
+        return _sanitize(detect_crowd_bytes(data))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 # ─── Routing (demand scoring, OR-Tools optimization, worker assignment,
 # bin recommendations, dynamic rerouting) — wraps ml/routing/* ────────────
 
