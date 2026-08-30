@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Radio, MapPin, Link2, CheckCircle2, Trash2, Star, Printer, ShieldCheck,
   Handshake, ThumbsUp, Gift, Truck, ShoppingCart, Globe2, HeartPulse, BarChart3,
   ShieldAlert, RefreshCw, Trophy, LayoutDashboard, Package, Leaf, User, Clock,
   Building2, Siren, Award, KeyRound, HardHat, Lock, Recycle, ClipboardList,
+  Settings, ChevronDown, ChevronUp, GripVertical,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -26,15 +27,37 @@ import {
   assignOrderApi, updateUser, completeComplaintApi, getIotBinData,
 } from '../../services/api';
 
+// Trimmed to the collector's actual field-work tabs. My Redemptions / History /
+// Account Settings moved behind the top-right profile menu instead of eating
+// sidebar space — they're still full pages, just reached differently.
 const NAV_ITEMS = [
   { id: 'sec-dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: 'sec-iot', label: 'IoT Bins', icon: <Radio className="h-4 w-4" /> },
   { id: 'sec-store-orders', label: 'Manage Orders', icon: <Package className="h-4 w-4" /> },
-  { id: 'sec-history', label: 'History', icon: <CheckCircle2 className="h-4 w-4" /> },
   { id: 'sec-store', label: 'Eco Store', icon: <ShoppingCart className="h-4 w-4" /> },
-  { id: 'sec-my-orders', label: 'My Redemptions', icon: <Gift className="h-4 w-4" /> },
-  { id: 'sec-awareness', label: 'Awareness', icon: <Leaf className="h-4 w-4" /> },
-  { id: 'sec-profile', label: 'Profile', icon: <User className="h-4 w-4" /> },
+];
+
+// Topbar title needs labels for every section, including the ones reached
+// via the profile menu rather than the sidebar.
+const SECTION_LABELS = {
+  'sec-dashboard': 'Dashboard',
+  'sec-iot': 'IoT Bins',
+  'sec-store-orders': 'Manage Orders',
+  'sec-store': 'Eco Store',
+  'sec-history': 'Resolved History',
+  'sec-my-orders': 'My Redemptions',
+  'sec-profile': 'Account Settings',
+};
+
+// Hoisted out of the JSX so the relocated AwarenessWidget can reuse it —
+// content unchanged from the original inline array.
+const AWARENESS_CARDS = [
+  { Icon: Globe2, title: 'Environmental impact', text: 'Proper waste collection prevents soil and water contamination.' },
+  { Icon: HeartPulse, title: 'Public health protection', text: 'Unmanaged waste attracts pests and spreads diseases.' },
+  { Icon: BarChart3, title: 'SDG contribution', text: 'Your work directly contributes to UN Sustainable Development Goals.' },
+  { Icon: ShieldAlert, title: 'Safety first', text: 'Always wear protective gloves and masks when handling waste.' },
+  { Icon: RefreshCw, title: 'Segregation matters', text: 'Separate wet, dry, and hazardous waste at the point of collection.' },
+  { Icon: Trophy, title: 'Your impact matters', text: 'Every complaint you resolve is a cleaner, safer campus.' },
 ];
 
 const FIELD = 'w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none ring-brand-400 focus:ring-2';
@@ -47,11 +70,117 @@ function EmptyState({ icon: Icon, title, desc }) {
 }
 const ORDER_STEPS = ['pending', 'approved', 'ready_for_pickup', 'delivered'];
 
+// Top-right profile icon — clicking it reveals My Redemptions / History /
+// Account Settings instead of those living as permanent sidebar tabs.
+function ProfileMenu({ name, email, points, onNavigate }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const go = (section) => { onNavigate(section); setIsOpen(false); };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen((o) => !o)}
+        aria-label="Profile menu"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500/15 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-500/25 dark:text-brand-300"
+      >
+        {getInitials(name)}
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-11 z-30 w-64 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+          >
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
+                {getInitials(name)}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                <p className="truncate text-xs text-muted-foreground">{email}</p>
+              </div>
+            </div>
+            <div className="px-4 py-2.5">
+              <Badge variant="warning"><Star className="h-3 w-3" /> {points} pts</Badge>
+            </div>
+            <div className="space-y-0.5 p-2 pt-0">
+              <button onClick={() => go('sec-my-orders')} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <Gift className="h-4 w-4 text-muted-foreground" /> My Redemptions
+              </button>
+              <button onClick={() => go('sec-history')} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" /> History
+              </button>
+              <button onClick={() => go('sec-profile')} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <Settings className="h-4 w-4 text-muted-foreground" /> Account Settings
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Compact "back to the main flow" link for the pages reached via the profile
+// menu (My Redemptions / History / Account Settings no longer sit in the sidebar).
+function BackToDashboard({ onNavigate }) {
+  return (
+    <button onClick={() => onNavigate('sec-dashboard')} className="mb-1 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+      <ChevronDown className="h-4 w-4 rotate-90" /> Back to Dashboard
+    </button>
+  );
+}
+
+// Awareness cards, relocated from their own tab to a small movable widget
+// anchored at the end of the Eco Store page — drag it out of the way, or
+// collapse it. Same cards, same content — just a different home.
+function AwarenessWidget({ collapsed, onToggleCollapsed }) {
+  return (
+    <motion.div
+      drag
+      dragMomentum={false}
+      dragElastic={0.08}
+      className="mx-auto mt-8 w-full max-w-4xl cursor-default rounded-xl border border-border bg-card shadow-sm"
+    >
+      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+        <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing" />
+        <Leaf className="h-4 w-4 shrink-0 text-brand-500" />
+        <p className="flex-1 text-sm font-semibold text-foreground">Waste management importance</p>
+        <button onClick={onToggleCollapsed} className="text-muted-foreground hover:text-foreground">
+          {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+        </button>
+      </div>
+      {!collapsed && (
+        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {AWARENESS_CARDS.map((c, i) => (
+            <Card key={i}><CardContent className="space-y-2 pt-5"><c.Icon className="h-7 w-7 text-brand-500" /><h3 className="font-semibold text-foreground">{c.title}</h3><p className="text-sm text-muted-foreground">{c.text}</p></CardContent></Card>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function CollectorDashboard() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [section, setSection] = useState('sec-dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [awarenessCollapsed, setAwarenessCollapsed] = useState(false);
 
   const [stats, setStats] = useState({ total: 0, pending: 0, progress: 0, done: 0 });
   const [openComplaints, setOpenComplaints] = useState([]);
@@ -219,7 +348,7 @@ export default function CollectorDashboard() {
     catch (err) { toast.error(err.response?.data?.message || 'Error updating profile'); }
   };
 
-  const currentLabel = NAV_ITEMS.find((n) => n.id === section)?.label || '';
+  const currentLabel = SECTION_LABELS[section] || '';
   const filterTabs = [{ label: 'All open', filter: '' }, { label: 'Pending', filter: 'pending' }, { label: 'In progress', filter: 'in-progress' }, { label: 'Rejected', filter: 'rejected' }];
   const iotOpen = openComplaints.filter((c) => c.type === 'iot' && c.status === 'pending');
 
@@ -227,7 +356,18 @@ export default function CollectorDashboard() {
     <div className="flex min-h-screen bg-background">
       <Sidebar portalName="Collector Portal" icon={<Truck className="h-4 w-4" />} navItems={NAV_ITEMS} activeSection={section} onNavigate={setSection} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={currentLabel} onToggleMenu={() => setIsSidebarOpen(true)} />
+        <Topbar
+          title={currentLabel}
+          onToggleMenu={() => setIsSidebarOpen(true)}
+          rightSlot={
+            <ProfileMenu
+              name={profile?.name || user?.name}
+              email={profile?.email || user?.email}
+              points={rewardTotal}
+              onNavigate={setSection}
+            />
+          }
+        />
         <main className="flex-1 space-y-5 p-4 md:p-6">
         <TabTransition tabKey={section}>
 
@@ -330,6 +470,7 @@ export default function CollectorDashboard() {
 
           {section === 'sec-history' && (
             <div className="space-y-4">
+              <BackToDashboard onNavigate={setSection} />
               <h2 className="text-lg font-semibold text-foreground">Resolved complaints</h2>
               <StatCard icon={Award} value={resolved.length} label="Total resolved" />
               <Card>
@@ -426,11 +567,14 @@ export default function CollectorDashboard() {
                   </Card>
                 ))}
               </div>
+
+              <AwarenessWidget collapsed={awarenessCollapsed} onToggleCollapsed={() => setAwarenessCollapsed((c) => !c)} />
             </div>
           )}
 
           {section === 'sec-my-orders' && (
             <div className="space-y-4">
+              <BackToDashboard onNavigate={setSection} />
               <h2 className="text-lg font-semibold text-foreground">My redemptions & reward history</h2>
               <div className="grid grid-cols-3 gap-4">
                 <StatCard icon={Star} value={rewardTotal} label="Available points" />
@@ -471,26 +615,9 @@ export default function CollectorDashboard() {
             </div>
           )}
 
-          {section === 'sec-awareness' && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">Waste management importance</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  { Icon: Globe2, title: 'Environmental impact', text: 'Proper waste collection prevents soil and water contamination.' },
-                  { Icon: HeartPulse, title: 'Public health protection', text: 'Unmanaged waste attracts pests and spreads diseases.' },
-                  { Icon: BarChart3, title: 'SDG contribution', text: 'Your work directly contributes to UN Sustainable Development Goals.' },
-                  { Icon: ShieldAlert, title: 'Safety first', text: 'Always wear protective gloves and masks when handling waste.' },
-                  { Icon: RefreshCw, title: 'Segregation matters', text: 'Separate wet, dry, and hazardous waste at the point of collection.' },
-                  { Icon: Trophy, title: 'Your impact matters', text: 'Every complaint you resolve is a cleaner, safer campus.' },
-                ].map((c, i) => (
-                  <Card key={i}><CardContent className="space-y-2 pt-5"><c.Icon className="h-7 w-7 text-brand-500" /><h3 className="font-semibold text-foreground">{c.title}</h3><p className="text-sm text-muted-foreground">{c.text}</p></CardContent></Card>
-                ))}
-              </div>
-            </div>
-          )}
-
           {section === 'sec-profile' && (
             <div className="max-w-lg space-y-5">
+              <BackToDashboard onNavigate={setSection} />
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-600 text-xl font-bold text-white">{getInitials(profile?.name)}</div>
                 <div>
