@@ -72,7 +72,7 @@ const createIncident = async (req, res) => {
 
     if (req.file) {
       try { incidentData.image = await uploadToCloudinary(req.file, 'nagarai/incidents'); }
-      catch (e) { console.error('⚠️ incident image upload failed:', e.message); }
+      catch (e) { console.error(' incident image upload failed:', e.message); }
     }
 
     // Deduplicate
@@ -88,7 +88,7 @@ const createIncident = async (req, res) => {
     // Notify admins
     const admins = await User.find({ role: 'admin' });
     for (const a of admins) {
-      await createNotification(a._id, `🚨 New ${type} incident ${incidentId} (priority ${incident.priority})`, 'incident').catch(() => {});
+      await createNotification(a._id, ` New ${type} incident ${incidentId} (priority ${incident.priority})`, 'incident').catch(() => {});
     }
 
     // Auto-convert to a collection task (closed loop part 1)
@@ -110,7 +110,7 @@ const createIncident = async (req, res) => {
 
     res.status(201).json({ incident, task });
   } catch (err) {
-    console.error('❌ [INCIDENT] create error:', err.message);
+    console.error(' [INCIDENT] create error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -180,7 +180,7 @@ const assignIncident = async (req, res) => {
   }
 };
 
-// @desc  Complete incident with proof (worker) → AI-style verification score
+// @desc  Complete incident with proof (worker)  AI-style verification score
 // @route POST /api/incidents/:id/complete
 const completeIncident = async (req, res) => {
   try {
@@ -212,12 +212,12 @@ const completeIncident = async (req, res) => {
     }
 
     if (incident.reporter) {
-      await createNotification(incident.reporter, `✅ Your incident ${incident.incidentId} is resolved (verified ${verificationScore}/100)`, 'incident').catch(() => {});
+      await createNotification(incident.reporter, ` Your incident ${incident.incidentId} is resolved (verified ${verificationScore}/100)`, 'incident').catch(() => {});
     }
 
     res.json({ incident, verificationScore });
   } catch (err) {
-    console.error('❌ [INCIDENT] complete error:', err.message);
+    console.error(' [INCIDENT] complete error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

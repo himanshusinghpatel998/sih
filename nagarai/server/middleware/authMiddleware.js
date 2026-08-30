@@ -31,7 +31,7 @@ const protect = async (req, res, next) => {
 
     // Debug: verify block is available (remove in production)
     if (user.role === 'collector') {
-      console.log(`🔑 [AUTH] Collector ${user.userId} authenticated | block: ${JSON.stringify(user.block)}`);
+      console.log(` [AUTH] Collector ${user.userId} authenticated | block: ${JSON.stringify(user.block)}`);
     }
 
     next();

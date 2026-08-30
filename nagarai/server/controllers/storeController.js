@@ -25,7 +25,7 @@ const createAuditLog = async (orderId, action, userId, details = '') => {
   try {
     await OrderLog.create({ orderId, action, performedBy: userId, details });
   } catch (err) {
-    console.error(`❌ [AUDIT] Failed to log ${action} for ${orderId}:`, err.message);
+    console.error(` [AUDIT] Failed to log ${action} for ${orderId}:`, err.message);
   }
 };
 
@@ -153,12 +153,12 @@ const redeemItem = async (req, res) => {
       expiresAt,
     });
 
-    console.log(`🛒 [ORDER] Created: ${order.orderId} | Block: ${order.block} | User: ${user._id}`);
+    console.log(` [ORDER] Created: ${order.orderId} | Block: ${order.block} | User: ${user._id}`);
 
-    // ✅ Notify Student
+    //  Notify Student
     await createNotification(
       user._id,
-      `🛒 Order ${order.orderId} placed successfully! Use code ${code} for pickup.`,
+      ` Order ${order.orderId} placed successfully! Use code ${code} for pickup.`,
       'info'
     );
 
@@ -235,7 +235,7 @@ const updateOrderStatus = async (req, res) => {
 
     // ── Security Check (Collector) ──
     if (req.user.role === 'collector' && order.block !== req.user.block) {
-      console.warn(`🚫 [ACCESS DENIED] Collector ${req.user._id} tried to update Order ${order.orderId} (Block ${order.block})`);
+      console.warn(` [ACCESS DENIED] Collector ${req.user._id} tried to update Order ${order.orderId} (Block ${order.block})`);
       return res.status(403).json({ message: 'Access denied: cannot update orders from another block' });
     }
 
@@ -279,7 +279,7 @@ const updateOrderStatus = async (req, res) => {
 
     if (validTransitions[order.status] && !validTransitions[order.status].includes(status)) {
       return res.status(400).json({
-        message: `Invalid status transition: ${order.status} → ${status}. Allowed: ${validTransitions[order.status].join(', ')}`,
+        message: `Invalid status transition: ${order.status}  ${status}. Allowed: ${validTransitions[order.status].join(', ')}`,
       });
     }
 
@@ -302,19 +302,19 @@ const updateOrderStatus = async (req, res) => {
           activity: `Delivered Order ${order.orderId}`,
           points: 20,
         });
-        console.log(`🏆 [REWARD] Collector ${req.user._id} earned 20 pts for delivery ${order.orderId}`);
+        console.log(` [REWARD] Collector ${req.user._id} earned 20 pts for delivery ${order.orderId}`);
       }
     }
 
     await order.save();
 
-    // ✅ Notify Student about status change
-    const statusEmoji = status === 'delivered' ? '📦' : status === 'ready_for_pickup' ? '🎁' : '👍';
+    //  Notify Student about status change
+    const statusEmoji = status === 'delivered' ? '' : status === 'ready_for_pickup' ? '' : '';
     const statusMsg = status === 'delivered' 
-      ? `📦 Your order ${order.orderId} has been delivered!` 
+      ? ` Your order ${order.orderId} has been delivered!` 
       : status === 'ready_for_pickup'
-      ? `🎁 Your order ${order.orderId} is ready for pickup!`
-      : `👍 Your order ${order.orderId} status updated to: ${status}`;
+      ? ` Your order ${order.orderId} is ready for pickup!`
+      : ` Your order ${order.orderId} status updated to: ${status}`;
 
     await createNotification(
       order.user,
@@ -357,7 +357,7 @@ const getOrderById = async (req, res) => {
     }
 
     if (req.user.role === 'collector' && order.block !== req.user.block) {
-      console.warn(`🚫 [ACCESS DENIED] Collector ${req.user._id} tried to view Order ${order.orderId} (Block ${order.block})`);
+      console.warn(` [ACCESS DENIED] Collector ${req.user._id} tried to view Order ${order.orderId} (Block ${order.block})`);
       return res.status(403).json({ message: 'Access denied: order belongs to another block' });
     }
 
@@ -380,7 +380,7 @@ const assignOrder = async (req, res) => {
     const order = await Order.findById(req.params.id);
     
     if (!order) {
-      console.error("❌ Order NOT found by _id");
+      console.error(" Order NOT found by _id");
       return res.status(404).json({ message: 'Order not found' });
     }
 
@@ -402,12 +402,12 @@ const assignOrder = async (req, res) => {
 
     await order.save();
     
-    console.log(`🤝 [SUCCESS] Order ${order.orderId} taken by Collector ${req.user._id}`);
+    console.log(` [SUCCESS] Order ${order.orderId} taken by Collector ${req.user._id}`);
 
-    // ✅ Notify Student
+    //  Notify Student
     await createNotification(
       order.user,
-      `🤝 Collector ${req.user.name} has taken your order ${order.orderId} and is preparing it.`,
+      ` Collector ${req.user.name} has taken your order ${order.orderId} and is preparing it.`,
       'info'
     );
 

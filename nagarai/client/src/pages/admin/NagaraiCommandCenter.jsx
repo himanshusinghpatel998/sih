@@ -423,7 +423,7 @@ export default function NagaraiCommandCenter() {
         <div className="space-y-4">
           <div className="flex gap-3">
             <Button onClick={handleGenerate} disabled={!!busy}>{busy === 'generate' ? 'Generating…' : 'Generate CVRP routes'}</Button>
-            <Button variant="outline" onClick={handleDeploy} disabled={!!busy}>{busy === 'deploy' ? 'Deploying…' : 'Deploy routes → create tasks'}</Button>
+            <Button variant="outline" onClick={handleDeploy} disabled={!!busy}>{busy === 'deploy' ? 'Deploying…' : 'Deploy routes  create tasks'}</Button>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <AnimatedStat label="Vehicles in plan" value={fleetSize} tone="brand" icon={Truck} />

@@ -1,6 +1,6 @@
 # Smart Waste Management — ML Pipeline Plan (Next Steps)
 
-This is the working plan for turning `waste_bin_dataset.csv` into the prediction system described in the project architecture: **XGBoost → Bin Optimization → Route Optimization**. It covers feature engineering, the exact features/targets, which model does what, and how prediction actually happens at inference time.
+This is the working plan for turning `waste_bin_dataset.csv` into the prediction system described in the project architecture: **XGBoost  Bin Optimization  Route Optimization**. It covers feature engineering, the exact features/targets, which model does what, and how prediction actually happens at inference time.
 
 ---
 
@@ -12,7 +12,7 @@ We are **not** building one model. We're building three, each solving a differen
 |---|---|---|---|
 | 1 | **Fill-% Forecaster** | XGBoost/LightGBM regression | "How full will bin X be in 6h / 12h / 24h?" |
 | 2 | **Overflow Classifier** | XGBoost/LightGBM classification | "What's the probability bin X overflows before next collection?" |
-| 3 | **Bin Behavior Clusters** | K-Means / hierarchical clustering | "Which bins behave alike?" → feeds bin placement/capacity decisions and gives Model 1 & 2 a useful categorical feature |
+| 3 | **Bin Behavior Clusters** | K-Means / hierarchical clustering | "Which bins behave alike?"  feeds bin placement/capacity decisions and gives Model 1 & 2 a useful categorical feature |
 
 Route optimization (OR-Tools) is a downstream *optimizer*, not a learned model — it consumes Model 2's overflow-risk scores as priority weights. That's out of scope for this doc but noted in §7 for continuity.
 
@@ -22,7 +22,7 @@ We are treating this as a **tabular time-series problem solved with lag/rolling 
 
 ## 2. Recap: what we already have
 
-From `waste_bin_dataset.csv` (112,574 rows, 154 bins, 2023-06-01 → 2025-05-31):
+From `waste_bin_dataset.csv` (112,574 rows, 154 bins, 2023-06-01  2025-05-31):
 
 - **Targets already computed:** `target_fill_percentage_next_day` (regression), `target_overflow_risk_next_day` (binary classification)
 - **Raw features available:** calendar (`date`, `day_of_week`, `month`, `season`, `is_holiday`, `holiday_name`, `is_festival`, `festival_name`, `event_type`, `event_multiplier`), zone/bin static attributes (`zone_type`, `bin_capacity_liters`, `waste_type`, `has_iot_sensor`, `population_density_per_sqkm`, `nearby_restaurants_count`, `nearby_markets_count`, `distance_to_nearest_bin_m`), weather (`rainfall_mm`, `temperature_c`, `humidity_percent`), dynamic state (`previous_fill_percentage`, `previous_waste_kg`, `days_since_last_collection`, `footfall_estimate`)
@@ -57,7 +57,7 @@ All lag/rolling features **must be computed strictly on past data per bin** (`gr
 - `is_festival_eve` (1-2 days before a festival start) — explicit flag for the anticipatory spike.
 
 ### 3.3 Interaction / domain features
-- `capacity_utilization_ratio` = `previous_fill_percentage / 100` × `bin_capacity_liters` → absolute litres currently in the bin, not just percentage (a 90%-full 120L bin and a 90%-full 1100L bin are very different operational situations).
+- `capacity_utilization_ratio` = `previous_fill_percentage / 100` × `bin_capacity_liters`  absolute litres currently in the bin, not just percentage (a 90%-full 120L bin and a 90%-full 1100L bin are very different operational situations).
 - `waste_per_capita_proxy` = `waste_generated_kg / population_density_per_sqkm` — normalizes generation by local density, useful for spotting under-served *dense* areas.
 - `footfall_per_restaurant` = `footfall_estimate / (nearby_restaurants_count + 1)` — a market-vs-purely-residential discriminator that's more informative than either raw count alone.
 - `rain_x_zone_outdoor` = `rainfall_mm × (zone_type in {market, tourist})` — makes the known interaction (rain matters more for outdoor zones) explicit for the model rather than relying on tree splits to rediscover it.
@@ -144,7 +144,7 @@ Excluded from the feature matrix (used only for joins/grouping, not as predictiv
 
 ### 6.4 Validation strategy (all models)
 **Never random k-fold on this data** — it's per-bin time series, and random shuffling leaks future state into training via the lag features. Use:
-- **Walk-forward / expanding-window CV**: e.g. train on 2023-06→2024-02, validate on 2024-03; train on 2023-06→2024-03, validate on 2024-04; etc. — mimics how the model will actually be retrained and used in production.
+- **Walk-forward / expanding-window CV**: e.g. train on 2023-062024-02, validate on 2024-03; train on 2023-062024-03, validate on 2024-04; etc. — mimics how the model will actually be retrained and used in production.
 - **Final holdout**: chronological split as already specified in the dataset's data dictionary (train through 2024-11-30, validate through 2025-02-28, test on the final 3 months) — touch the test set exactly once, at the end.
 
 ---

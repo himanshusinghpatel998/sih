@@ -25,14 +25,14 @@ export function ToastProvider({ children }) {
       {/* Toast Container */}
       <div className="toast-container">
         {toasts.map((t) => {
-          const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+          const icons = { success: '', error: '', warning: '', info: 'ℹ' };
           return (
             <div
               key={t.id}
               className={`toast ${t.type}`}
               onClick={() => removeToast(t.id)}
             >
-              <span>{icons[t.type] || '✅'}</span>
+              <span>{icons[t.type] || ''}</span>
               <span>{t.msg}</span>
             </div>
           );

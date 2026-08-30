@@ -62,12 +62,12 @@ const createUser = async (req, res) => {
     }
 
     const user = await User.create(userData);
-    console.log(`👤 [USERS] Created ${userData.role} | block: ${userData.block || 'N/A'} | email: ${userData.email}`);
+    console.log(` [USERS] Created ${userData.role} | block: ${userData.block || 'N/A'} | email: ${userData.email}`);
 
-    // ✅ Notify the new user
+    //  Notify the new user
     await createNotification(
       user._id,
-      `👋 Welcome to SustainX, ${user.name}! Your account as a ${user.role} has been created.`,
+      ` Welcome to SustainX, ${user.name}! Your account as a ${user.role} has been created.`,
       'info'
     );
 

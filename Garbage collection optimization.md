@@ -4,28 +4,28 @@
 
 **Core idea:** Predict waste **before it happens** and optimize municipal resources accordingly.
 
-### **🔥 Priority Features**
+### ** Priority Features**
 
-1. **🧠 Waste Prediction**  
+1. ** Waste Prediction**  
    * Predict waste/fill level by area/bin using history, time, season, weather, footfall, nearby shops, etc.  
    * Predict **6–24 hrs ahead**.  
-2. **🗑️ Smart Bin Optimization**  
+2. ** Smart Bin Optimization**  
    * Recommend **where to add bins**  
    * Recommend **where to relocate bins**  
    * Recommend **capacity upgrades**  
    * Based on waste demand, landmarks, footfall and overflow history.  
-3. **🎪 Event Prediction**  
-   * Festival/event → predict waste spike → automatically calculate extra **bins \+ capacity \+ workers \+ vehicles**.  
-4. **🚛 Dynamic Route Optimization**  
+3. ** Event Prediction**  
+   * Festival/event  predict waste spike  automatically calculate extra **bins \+ capacity \+ workers \+ vehicles**.  
+4. ** Dynamic Route Optimization**  
    * Optimize routes based on predicted overflow, vehicle capacity, distance and priority.  
    * Re-route when urgent problems appear.  
-5. **👷 Workforce Optimization**  
+5. ** Workforce Optimization**  
    * Distribute limited workers/vehicles among highest-priority areas.  
-6. **📹 AI Waste Detection**  
-   * CCTV/image → detect garbage, overflow, illegal dumping and crowd spikes.  
-7. **📱 Citizen Reporting**  
-   * Photo \+ location → AI detects issue → priority → worker task.  
-8. **🧹 Cleaning Prediction**  
+6. ** AI Waste Detection**  
+   * CCTV/image  detect garbage, overflow, illegal dumping and crowd spikes.  
+7. ** Citizen Reporting**  
+   * Photo \+ location  AI detects issue  priority  worker task.  
+8. ** Cleaning Prediction**  
    * Predict **where/how often sweeping is needed** based on traffic, events, season, etc.
 
 # BRIEF PRD
@@ -36,13 +36,13 @@
 
 NagarAI is an AI-powered municipal operating system that predicts **where, when, and what type of waste will accumulate**, then optimizes **bins, bin placement, capacity, vehicles, routes, workers, sweeping, and interventions** before problems occur.
 
-> **From reactive garbage collection → predictive city sanitation.**
+> **From reactive garbage collection  predictive city sanitation.**
 
 ---
 
 # **2\. Core Modules**
 
-## **🧠 AI Waste Prediction**
+## ** AI Waste Prediction**
 
 Predict waste quantity and type for every zone/bin using:
 
@@ -59,7 +59,7 @@ Predict waste levels for **1h / 6h / 12h / 24h / 48h**.
 
 ---
 
-## **🗑️ Intelligent Bin Placement & Capacity Optimization**
+## ** Intelligent Bin Placement & Capacity Optimization**
 
 NagarAI continuously analyzes whether the city's existing bin infrastructure is actually suitable for demand.
 
@@ -115,19 +115,19 @@ The system can therefore optimize the **entire city's bin network**, rather than
 
 ---
 
-## **🎪 Event & Spike Prediction**
+## ** Event & Spike Prediction**
 
 Detect upcoming events and automatically predict their sanitation impact.
 
 Example:
 
-**Festival → 3× waste → temporary bins \+ additional trucks \+ sweepers \+ increased collection frequency**
+**Festival  3× waste  temporary bins \+ additional trucks \+ sweepers \+ increased collection frequency**
 
 Also detect unexpected crowd/activity spikes using CCTV and footfall data.
 
 ---
 
-## **🚛 Dynamic Route Optimization**
+## ** Dynamic Route Optimization**
 
 Continuously optimize collection routes using:
 
@@ -143,7 +143,7 @@ Routes dynamically change when an urgent bin/report appears or a vehicle becomes
 
 ---
 
-## **👷 Workforce Optimization**
+## ** Workforce Optimization**
 
 Assign workers and teams based on:
 
@@ -159,7 +159,7 @@ Balance workload while ensuring critical areas are handled first.
 
 ---
 
-## **🧹 Predictive Sweeping**
+## ** Predictive Sweeping**
 
 Predict road-cleaning requirements using:
 
@@ -176,7 +176,7 @@ Recommend **where, when and how frequently** each area should be cleaned.
 
 ---
 
-## **📹 CCTV Intelligence**
+## ** CCTV Intelligence**
 
 Computer vision detects:
 
@@ -190,13 +190,13 @@ CCTV activity also feeds the waste prediction engine.
 
 ---
 
-## **📡 Smart Bin & Sensor Intelligence**
+## ** Smart Bin & Sensor Intelligence**
 
 Support:
 
-**IoT sensors → real-time fill/weight data**
+**IoT sensors  real-time fill/weight data**
 
-**AI → predicted fill when sensors aren't available**
+**AI  predicted fill when sensors aren't available**
 
 This creates:
 
@@ -206,7 +206,7 @@ A bin at 65% today may be predicted to reach 100% in 3 hours, triggering proacti
 
 ---
 
-## **📱 Citizen App**
+## ** Citizen App**
 
 Citizens can:
 
@@ -221,7 +221,7 @@ AI automatically classifies, verifies and prioritizes reports.
 
 ---
 
-## **👷 Worker App**
+## ** Worker App**
 
 Workers receive:
 
@@ -235,7 +235,7 @@ They upload before/after photos and AI verifies cleaning completion.
 
 ---
 
-## **📊 Municipal Command Center**
+## ** Municipal Command Center**
 
 Live dashboard showing:
 
@@ -266,19 +266,19 @@ Example:
 
 **High waste \+ small bin \+ frequent overflow**
 
-→ Increase bin capacity.
+ Increase bin capacity.
 
 **High waste \+ insufficient bin coverage**
 
-→ Install additional bin.
+ Install additional bin.
 
 **Low waste \+ oversized unused bin**
 
-→ Relocate it.
+ Relocate it.
 
 **High dumping \+ sufficient bins \+ frequent collection**
 
-→ Awareness/behavior intervention.
+ Awareness/behavior intervention.
 
 This makes NagarAI a **decision engine**, not just a monitoring dashboard.
 
@@ -327,30 +327,30 @@ AI simulates impact on:
 
 # **6\. Closed-Loop System**
 
-**Predict → Prioritize → Optimize → Deploy → Verify → Learn**
+**Predict  Prioritize  Optimize  Deploy  Verify  Learn**
 
 Festival detected  
-↓  
+  
 Waste spike predicted  
-↓  
+  
 Bin requirements & capacity calculated  
-↓  
+  
 Extra bins/workers deployed  
-↓  
+  
 CCTV detects crowd growth  
-↓  
+  
 Prediction updates  
-↓  
+  
 Routes dynamically optimized  
-↓  
+  
 Citizen reports garbage  
-↓  
+  
 AI prioritizes incident  
-↓  
+  
 Worker cleans it  
-↓  
+  
 AI verifies cleanup  
-↓  
+  
 Actual result improves future predictions
 
 ---
@@ -363,7 +363,7 @@ Focus the demo on:
 2. **Event-based spike prediction**  
 3. **AI bin placement \+ capacity optimization**  
 4. **Dynamic route \+ workforce optimization**  
-5. **CCTV/citizen report → AI priority → worker task → verification**
+5. **CCTV/citizen report  AI priority  worker task  verification**
 
 ### **Killer Demo**
 
@@ -385,13 +385,13 @@ NagarAI predicts a **2.8× waste spike**, identifies future hotspots, determines
 
 **NagarAI** is an AI-powered municipal operating system that predicts **where, when, and what type of waste will accumulate**, then optimizes **bins, vehicles, routes, workers, sweeping, and interventions** before problems occur.
 
-> **From reactive garbage collection → predictive city sanitation.**
+> **From reactive garbage collection  predictive city sanitation.**
 
 ---
 
 ## **2\. Core Modules**
 
-### **🧠 AI Waste Prediction**
+### ** AI Waste Prediction**
 
 Predict waste quantity and type for every zone/bin using:
 
@@ -406,17 +406,17 @@ Predict waste quantity and type for every zone/bin using:
 
 Predict **1h / 6h / 12h / 24h / 48h** waste levels.
 
-### **🎪 Event & Spike Prediction**
+### ** Event & Spike Prediction**
 
 Detect upcoming events and automatically predict their impact.
 
 Example:
 
-**Festival → 3× waste → extra bins \+ trucks \+ sweepers \+ higher collection frequency.**
+**Festival  3× waste  extra bins \+ trucks \+ sweepers \+ higher collection frequency.**
 
 Also detect unexpected crowd/activity spikes using CCTV and footfall data.
 
-### **🚛 Dynamic Route Optimization**
+### ** Dynamic Route Optimization**
 
 Continuously optimize collection routes using:
 
@@ -430,7 +430,7 @@ Continuously optimize collection routes using:
 
 Routes automatically change when an urgent bin/report appears or a vehicle becomes unavailable.
 
-### **👷 Workforce Optimization**
+### ** Workforce Optimization**
 
 Assign workers and teams based on:
 
@@ -444,7 +444,7 @@ Assign workers and teams based on:
 
 Balance workload while ensuring critical areas are handled first.
 
-### **🧹 Predictive Sweeping**
+### ** Predictive Sweeping**
 
 Predict road-cleaning requirements using:
 
@@ -459,7 +459,7 @@ Predict road-cleaning requirements using:
 
 Automatically recommend **where and how frequently to sweep**.
 
-### **📹 CCTV Intelligence**
+### ** CCTV Intelligence**
 
 Computer vision detects:
 
@@ -471,7 +471,7 @@ Computer vision detects:
 
 CCTV activity can also become an input to **future waste prediction**.
 
-### **🗑️ Smart Bin Intelligence**
+### ** Smart Bin Intelligence**
 
 Support both:
 
@@ -486,7 +486,7 @@ Also optimize:
 
 based on nearby landmarks, footfall and waste generation.
 
-### **📱 Citizen App**
+### ** Citizen App**
 
 Citizens can:
 
@@ -499,7 +499,7 @@ Citizens can:
 
 AI automatically classifies and prioritizes reports.
 
-### **👷 Worker App**
+### ** Worker App**
 
 Workers receive:
 
@@ -511,7 +511,7 @@ Workers receive:
 
 They upload **before/after photos** and AI verifies whether cleaning was completed.
 
-### **📊 Municipal Command Center**
+### ** Municipal Command Center**
 
 Live city dashboard showing:
 
@@ -540,7 +540,7 @@ Example:
 
 **High dumping \+ enough bins \+ frequent collection**
 
-→ AI recommends **awareness campaign**, rather than simply adding another bin.
+ AI recommends **awareness campaign**, rather than simply adding another bin.
 
 ---
 
@@ -582,28 +582,28 @@ AI simulates impact on:
 
 # **6\. Closed-Loop System**
 
-**Predict → Prioritize → Optimize → Deploy → Verify → Learn**
+**Predict  Prioritize  Optimize  Deploy  Verify  Learn**
 
 Example:
 
 Festival detected  
-↓  
+  
 Waste spike predicted  
-↓  
+  
 Extra bins/workers deployed  
-↓  
+  
 CCTV detects crowd  
-↓  
+  
 Routes dynamically updated  
-↓  
+  
 Citizen reports garbage  
-↓  
+  
 AI prioritizes incident  
-↓  
+  
 Worker cleans it  
-↓  
+  
 AI verifies cleanup  
-↓  
+  
 Actual result improves future predictions
 
 ---
@@ -616,7 +616,7 @@ Focus the demo on **5 features**:
 2. **Event-based spike prediction**  
 3. **Dynamic route \+ workforce optimization**  
 4. **CCTV garbage detection**  
-5. **Citizen report → AI priority → worker task → verification**
+5. **Citizen report  AI priority  worker task  verification**
 
 ### **Killer Demo**
 
@@ -646,7 +646,7 @@ NagarAI predicts a **2.8× waste spike**, identifies hotspots, recommends additi
 
 Municipal waste management is usually reactive:
 
-**Bin fills → citizen complains → municipality discovers problem → vehicle is dispatched.**
+**Bin fills  citizen complains  municipality discovers problem  vehicle is dispatched.**
 
 This creates:
 
@@ -665,7 +665,7 @@ This creates:
 
 NagarAI changes the model from:
 
-**Reactive Cleaning → Predictive Urban Sanitation**
+**Reactive Cleaning  Predictive Urban Sanitation**
 
 ---
 
@@ -695,7 +695,7 @@ The system should work even if a city has **no IoT sensors initially**.
 
 It can progressively incorporate:
 
-**Historical data → citizen reports → municipal records → CCTV → IoT sensors → external events/weather data**
+**Historical data  citizen reports  municipal records  CCTV  IoT sensors  external events/weather data**
 
 ---
 
@@ -963,7 +963,7 @@ This allows the system to discover:
 
 Instead of:
 
-**Truck A → Bin 1 → Bin 2 → Bin 3 → Bin 4**
+**Truck A  Bin 1  Bin 2  Bin 3  Bin 4**
 
 every day,
 
@@ -1177,7 +1177,7 @@ The system should process video primarily for environmental intelligence.
 
 Possible architecture:
 
-**Camera → Edge AI → anonymized event metadata → cloud**
+**Camera  Edge AI  anonymized event metadata  cloud**
 
 Instead of continuously storing identifiable video.
 
@@ -1966,7 +1966,7 @@ The model learns from the error.
 
 Over time:
 
-**Prediction → Action → Result → Feedback → Better Prediction**
+**Prediction  Action  Result  Feedback  Better Prediction**
 
 This makes the system increasingly city-specific.
 
@@ -2183,19 +2183,19 @@ Can:
 
 ## **Citizen App**
 
-**Report → Track → Participate**
+**Report  Track  Participate**
 
 ## **Worker App**
 
-**Task → Navigate → Execute → Verify**
+**Task  Navigate  Execute  Verify**
 
 ## **Supervisor App**
 
-**Monitor → Assign → Resolve**
+**Monitor  Assign  Resolve**
 
 ## **Municipal Command Center**
 
-**Predict → Optimize → Intervene → Analyze**
+**Predict  Optimize  Intervene  Analyze**
 
 ---
 
@@ -2335,7 +2335,7 @@ Citizen uploads photo.
 
 AI:
 
-**classifies → prioritizes → creates task → assigns worker**
+**classifies  prioritizes  creates task  assigns worker**
 
 ---
 
@@ -2439,29 +2439,29 @@ NagarAI asks:
 The differentiation stack is:
 
 **Sensors**  
-↓  
+  
 **CCTV**  
-↓  
+  
 **Citizen Reports**  
-↓  
+  
 **Events**  
-↓  
+  
 **Landmarks**  
-↓  
+  
 **Weather**  
-↓  
+  
 **Historical Patterns**  
-↓  
+  
 **AI Prediction**  
-↓  
+  
 **Optimization**  
-↓  
+  
 **Resource Allocation**  
-↓  
+  
 **Execution**  
-↓  
+  
 **Verification**  
-↓  
+  
 **Learning**
 
 This creates a closed-loop municipal intelligence system.
@@ -2492,7 +2492,7 @@ Choose whether to deploy a truck, worker, bin, sweeping team or awareness campai
 
 Optimize routes while respecting actual manpower constraints.
 
-### **6\. CCTV → Prediction**
+### **6\. CCTV  Prediction**
 
 Use crowd/activity signals to forecast future waste.
 
@@ -2506,7 +2506,7 @@ Determine where new bins should exist and what capacity they need.
 
 ### **9\. Closed-Loop Verification**
 
-Citizen report → AI → worker → cleanup → computer vision verification.
+Citizen report  AI  worker  cleanup  computer vision verification.
 
 ### **10\. Municipal Digital Twin**
 

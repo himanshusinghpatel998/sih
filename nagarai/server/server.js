@@ -28,10 +28,10 @@ const cctvRoutes = require('./routes/cctvRoutes');
 
 const app = express();
 
-// ✅ Connect to MongoDB
+//  Connect to MongoDB
 connectDB();
 
-// ✅ CORS — any localhost/127.0.0.1 port allowed in dev (Vite auto-increments
+//  CORS — any localhost/127.0.0.1 port allowed in dev (Vite auto-increments
 // the port when 3001 is busy, so a hardcoded port list breaks on every clash),
 // plus the deployed frontend origin(s) below.
 const allowedOrigins = [
@@ -50,14 +50,14 @@ app.use(cors({
   credentials: true
 }));
 
-// ✅ Middleware
+//  Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Serve uploaded files
+//  Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ✅ Routes
+//  Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/complaints', complaintRoutes);
@@ -78,17 +78,17 @@ app.use('/api/simulate', simulatorRoutes);
 app.use('/api/sweeping', sweepingRoutes);
 app.use('/api/cctv', cctvRoutes);
 
-// ✅ Root route (Render health check)
+//  Root route (Render health check)
 app.get('/', (req, res) => {
-  res.send('🚀 SustainX Backend Running Successfully');
+  res.send(' SustainX Backend Running Successfully');
 });
 
-// ✅ API check
+//  API check
 app.get('/api', (req, res) => {
-  res.send('🚀 SustainX API is running successfully...');
+  res.send(' SustainX API is running successfully...');
 });
 
-// ✅ Health check (includes Cloudinary config status for debugging)
+//  Health check (includes Cloudinary config status for debugging)
 app.get('/api/health', (req, res) => {
   const cloudinary = require('./config/cloudinary');
   const cfg = cloudinary.config();
@@ -105,7 +105,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ✅ Global error handler
+//  Global error handler
 app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({
@@ -119,7 +119,7 @@ app.use((err, req, res, next) => {
     });
   }
 
-  console.error("🔥 Error:", err.stack);
+  console.error(" Error:", err.stack);
 
   res.status(500).json({
     message: 'Internal Server Error',
@@ -127,9 +127,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ✅ Start server (Render compatible)
+//  Start server (Render compatible)
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(` Server running on port ${PORT}`);
 });

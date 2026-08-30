@@ -1,5 +1,5 @@
 /**
- * Candidate color schemes for the theme-switcher (Settings → Appearance).
+ * Candidate color schemes for the theme-switcher (Settings  Appearance).
  * Every scheme was generated with tastemaker's `generate_palette.py` —
  * real OKLCH color-harmony math with a verified contrast matrix, not
  * hand-picked hex values — same method used for the shipped default

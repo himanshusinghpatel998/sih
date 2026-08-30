@@ -89,12 +89,12 @@ const WORKERS = [
 
 const seed = async () => {
   await connectDB();
-  console.log('🌱 Seeding NagarAI mock city...\n');
+  console.log(' Seeding NagarAI mock city...\n');
 
   // Clear existing docs (idempotent re-seed)
   const models = [User, Zone, Landmark, Bin, Vehicle, Worker, Event, DisposalFacility, WastePrediction, BinRecommendation, Route, CollectionTask, WasteIncident];
   for (const m of models) await m.deleteMany({});
-  console.log('🧹 Cleared existing data');
+  console.log(' Cleared existing data');
 
   // ---- Users ----
   const admin = await User.create({
@@ -117,7 +117,7 @@ const seed = async () => {
     });
     workerUsers.push({ user, ...w });
   }
-  console.log(`👤 Users: 1 admin, ${workerUsers.length} collectors`);
+  console.log(` Users: 1 admin, ${workerUsers.length} collectors`);
 
   // ---- Zones ----
   const zoneDocs = {};
@@ -133,7 +133,7 @@ const seed = async () => {
       footfall: z.footfall,
     });
   }
-  console.log(`🗺️  Zones: ${ZONES.length}`);
+  console.log(`  Zones: ${ZONES.length}`);
 
   // ---- Landmarks ----
   for (const l of LANDMARKS) {
@@ -150,7 +150,7 @@ const seed = async () => {
       estimatedDailyVisitors: Math.round(500 + Math.random() * 5000),
     });
   }
-  console.log(`🏷️  Landmarks: ${LANDMARKS.length}`);
+  console.log(`  Landmarks: ${LANDMARKS.length}`);
 
   // ---- Bins ----
   let binSeq = 100;
@@ -177,7 +177,7 @@ const seed = async () => {
     }
   }
   const binCount = Object.values(BINS_BY_ZONE).reduce((a, c) => a + c.length, 0);
-  console.log(`🗑️  Bins: ${binCount}`);
+  console.log(`  Bins: ${binCount}`);
 
   // ---- Vehicles ----
   for (const v of VEHICLES) {
@@ -190,7 +190,7 @@ const seed = async () => {
       location: { lat: MOCK_CITY.center.lat, lng: MOCK_CITY.center.lng },
     });
   }
-  console.log(`🚛 Vehicles: ${VEHICLES.length}`);
+  console.log(` Vehicles: ${VEHICLES.length}`);
 
   // ---- Workers ----
   for (const wu of workerUsers) {
@@ -204,7 +204,7 @@ const seed = async () => {
       location: { lat: MOCK_CITY.center.lat + off.lat, lng: MOCK_CITY.center.lng + off.lng },
     });
   }
-  console.log(`👷 Workers: ${workerUsers.length}`);
+  console.log(` Workers: ${workerUsers.length}`);
 
   // ---- Disposal facility ----
   const disposal = await DisposalFacility.create({
@@ -231,9 +231,9 @@ const seed = async () => {
     wasteMultiplier: 2.8,
     status: 'upcoming',
   });
-  console.log(`🎪 Events: 1 (upcoming festival)`);
+  console.log(` Events: 1 (upcoming festival)`);
 
-  console.log('\n✅ Seed complete!');
+  console.log('\n Seed complete!');
   console.log('──────────────────────────────────────────');
   console.log('Login credentials:');
   console.log('  Admin:    admin@nagarai.test  / admin123');
@@ -245,6 +245,6 @@ const seed = async () => {
 };
 
 seed().catch((err) => {
-  console.error('❌ Seed error:', err);
+  console.error(' Seed error:', err);
   process.exit(1);
 });

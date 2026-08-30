@@ -57,7 +57,7 @@ const getComplaintById = async (req, res) => {
 
     res.json(complaint);
   } catch (err) {
-    console.error("❌ [GET COMPLAINT]:", err.message);
+    console.error(" [GET COMPLAINT]:", err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -75,14 +75,14 @@ const submitComplaint = async (req, res) => {
 
     // Handle image upload
     let imageUrl = null;
-    console.log(`📸 [SUBMIT] req.file present: ${!!req.file}`, req.file ? { fieldname: req.file.fieldname, mimetype: req.file.mimetype, size: req.file.size, hasBuffer: !!req.file.buffer } : 'NO FILE');
+    console.log(` [SUBMIT] req.file present: ${!!req.file}`, req.file ? { fieldname: req.file.fieldname, mimetype: req.file.mimetype, size: req.file.size, hasBuffer: !!req.file.buffer } : 'NO FILE');
 
     if (req.file) {
       try {
         imageUrl = await uploadToCloudinary(req.file, 'sustainx/complaints');
-        console.log(`✅ [SUBMIT] Cloudinary URL: ${imageUrl}`);
+        console.log(` [SUBMIT] Cloudinary URL: ${imageUrl}`);
       } catch (uploadErr) {
-        console.error("❌ [SUBMIT] Cloudinary upload failed:", uploadErr.message);
+        console.error(" [SUBMIT] Cloudinary upload failed:", uploadErr.message);
         // Continue without image rather than failing the whole complaint
       }
     }
@@ -109,28 +109,28 @@ const submitComplaint = async (req, res) => {
       ],
     });
 
-    console.log(`✅ [SUBMIT] Saved ${complaintId} | image=${complaint.image}`);
+    console.log(` [SUBMIT] Saved ${complaintId} | image=${complaint.image}`);
 
-    // ✅ Notify Student about registration
+    //  Notify Student about registration
     await createNotification(
       req.user.id,
-      `📢 Your complaint ${complaintId} has been registered successfully!`,
+      ` Your complaint ${complaintId} has been registered successfully!`,
       'complaint'
     );
 
-    // ✅ Notify Admins about new complaint
+    //  Notify Admins about new complaint
     const admins = await User.find({ role: 'admin' });
     for (const admin of admins) {
       await createNotification(
         admin._id,
-        `📋 New complaint ${complaintId} filed in Block ${block.toUpperCase()}`,
+        ` New complaint ${complaintId} filed in Block ${block.toUpperCase()}`,
         'complaint'
       );
     }
 
     res.status(201).json(complaint);
   } catch (err) {
-    console.error("🔥 [SUBMIT] ERROR:", err.message);
+    console.error(" [SUBMIT] ERROR:", err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -168,19 +168,19 @@ const updateComplaintStatus = async (req, res) => {
 
     await complaint.save();
 
-    // ✅ Notify Student about assignment if just assigned
+    //  Notify Student about assignment if just assigned
     if (status === 'in-progress' || status === 'in_progress') {
       await createNotification(
         complaint.user,
-        `🚛 Collector ${req.user.name} has picked up your complaint ${complaint.complaintId}`,
+        ` Collector ${req.user.name} has picked up your complaint ${complaint.complaintId}`,
         'complaint'
       );
     }
 
-    // ✅ Notify Student about status update
+    //  Notify Student about status update
     await createNotification(
       complaint.user,
-      `🔍 Complaint ${complaint.complaintId} status updated to: ${status}`,
+      ` Complaint ${complaint.complaintId} status updated to: ${status}`,
       'complaint'
     );
 
@@ -195,15 +195,15 @@ const updateComplaintStatus = async (req, res) => {
 const completeComplaint = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(`🚀 [COMPLETE] Request for: ${id}`);
+    console.log(` [COMPLETE] Request for: ${id}`);
 
     // ── Step 1: Validate file ──
     if (!req.file) {
-      console.log("❌ [COMPLETE] No file in request");
+      console.log(" [COMPLETE] No file in request");
       return res.status(400).json({ message: 'Proof image is required.' });
     }
 
-    console.log("📸 [COMPLETE] File received:", {
+    console.log(" [COMPLETE] File received:", {
       fieldname: req.file.fieldname,
       mimetype: req.file.mimetype,
       size: req.file.size,
@@ -213,7 +213,7 @@ const completeComplaint = async (req, res) => {
     // ── Step 2: Find complaint ──
     const complaint = await Complaint.findOne({ complaintId: id.toUpperCase() });
     if (!complaint) {
-      console.log(`❌ [COMPLETE] Not found: ${id}`);
+      console.log(` [COMPLETE] Not found: ${id}`);
       return res.status(404).json({ message: 'Complaint not found' });
     }
 
@@ -221,18 +221,18 @@ const completeComplaint = async (req, res) => {
     const userId = (req.user._id || req.user.id).toString();
     const assignedId = complaint.assignedTo ? complaint.assignedTo.toString() : null;
     if (assignedId && assignedId !== userId) {
-      console.log(`❌ [COMPLETE] Auth: user=${userId} assigned=${assignedId}`);
+      console.log(` [COMPLETE] Auth: user=${userId} assigned=${assignedId}`);
       return res.status(403).json({ message: 'Only the assigned collector can complete this.' });
     }
 
     // ── Step 4: Upload to Cloudinary ──
     let imageUrl;
     try {
-      console.log("☁️ [COMPLETE] Uploading to Cloudinary...");
+      console.log(" [COMPLETE] Uploading to Cloudinary...");
       imageUrl = await uploadToCloudinary(req.file, 'sustainx/completions');
-      console.log("✅ [COMPLETE] Cloudinary URL:", imageUrl);
+      console.log(" [COMPLETE] Cloudinary URL:", imageUrl);
     } catch (uploadErr) {
-      console.error("❌ [COMPLETE] Cloudinary FAILED:", uploadErr.message);
+      console.error(" [COMPLETE] Cloudinary FAILED:", uploadErr.message);
       return res.status(500).json({
         message: 'Image upload to Cloudinary failed',
         error: uploadErr.message,
@@ -250,14 +250,14 @@ const completeComplaint = async (req, res) => {
     });
 
     await complaint.save();
-    console.log(`✅ [COMPLETE] DB saved: ${complaint.complaintId}`);
+    console.log(` [COMPLETE] DB saved: ${complaint.complaintId}`);
 
     // ── Step 6: Notify (non-blocking) ──
     createNotification(
       complaint.user,
-      `✅ Your complaint ${complaint.complaintId} has been completed!`,
+      ` Your complaint ${complaint.complaintId} has been completed!`,
       'complaint'
-    ).catch(e => console.error("⚠️ Notification error:", e.message));
+    ).catch(e => console.error(" Notification error:", e.message));
 
     return res.json({
       success: true,
@@ -267,7 +267,7 @@ const completeComplaint = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("🔥 [COMPLETE] FATAL:", err);
+    console.error(" [COMPLETE] FATAL:", err);
     return res.status(500).json({
       message: `Server error: ${err.message}`,
       error: err.message,

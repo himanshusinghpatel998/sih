@@ -71,15 +71,15 @@ Why a separate Python service instead of trying to run XGBoost inside Node: the 
 This is the foundational workstream; the redesigned Command Center dashboard is only as good as the data it shows.
 
 1. **Write `ml/inference.py`** — the "package a small inference script" step the ML plan doc already calls out as outstanding (§7/§9 of `ML_PIPELINE_PLAN.md`). Given a live bin's current state (last known fill %, capacity, zone attributes, today's date/weather/event context) plus its recent history, reconstruct the same feature vector `build_features` produces at training time, then:
-   - Load `model1_fill_percentage_xgb.json` → predict next-day fill %.
-   - Load `model2_overflow_risk_xgb.json` → predict overflow probability.
+   - Load `model1_fill_percentage_xgb.json`  predict next-day fill %.
+   - Load `model2_overflow_risk_xgb.json`  predict overflow probability.
    - Look up `bin_cluster_id` from `bin_cluster_mapping.csv`.
    - For the 1h/6h/12h/24h multi-horizon display the brief wants: interpolate between current reading and the next-day point estimate (documented, honest simplification — the models are daily-granularity; state this explicitly in the demo narrative, per the plan doc §7.3).
 2. **Feature-history store**: the trained models need lag/rolling features (`fill_pct_lag_7d`, `rolling_mean_fill_pct_7d`, `days_since_last_overflow`, etc.), which requires a rolling history per bin — the live Mongo `Bin`/`BinData` collections currently only track current state. Add a lightweight daily snapshot job (a new `server/scripts/snapshotBinHistory.js` cron, or a `BinHistory` Mongo collection written once/day) so the feature pipeline always has real trailing history to compute from, not just today's reading.
 3. **Bootstrap real bin metadata**: `seed.js` currently generates mock zones/bins. Import `bins_master.csv`'s real static attributes (zone_type, capacity, population density, nearby restaurants/markets, lat/long) into the seed so live bins carry the same columns the model was trained on — otherwise predictions run on features the model has never seen a realistic distribution for.
 4. **Build `ml-service/` (FastAPI)**:
    - `GET /health`
-   - `POST /predict/bin` — one bin's current state + history → `{ fill_pct_next_day, overflow_risk, cluster_id, cluster_label, horizons: {1h,6h,12h,24h} }`
+   - `POST /predict/bin` — one bin's current state + history  `{ fill_pct_next_day, overflow_risk, cluster_id, cluster_label, horizons: {1h,6h,12h,24h} }`
    - `POST /predict/batch` — same, for all bins in one call (used by the Command Center's map refresh)
    - Loads both boosters once at startup, not per-request.
    - `requirements.txt`: `fastapi`, `uvicorn`, `xgboost`, `pandas`, `numpy`, `scikit-learn`.
@@ -96,7 +96,7 @@ This is the foundational workstream; the redesigned Command Center dashboard is 
 |---|---|---|
 | **7 — What-If Simulator** | `simulatorController.js` is a 38-line stub | Accept a scenario payload (`{ addTrucks, removeTrucks, addBins, festivalTomorrow, heavyRain }`), re-run `routeOptimizer.js`/`workforceOptimizer.js`/`predictionEngine.js` against the modified resource set, diff against baseline (overflow count, response time, distance/fuel), return a comparison object. No new ML needed — it's a parametrized re-run of existing optimizers. |
 | **9 — Predictive Sweeping** | `sweepingController.js` is a 26-line stub, `SweepingNeed` model exists unused | Compute a **Road Dirt Accumulation Score** per zone from existing signals already in Mongo (footfall, nearby markets/restaurants, event calendar, weather, historical incident density) — a weighted formula like the existing rule-based prediction engine, not a new model. Output a sweeping frequency recommendation per zone/road segment. |
-| **8 — CCTV Intelligence** | Not started; no controller/model | **Scope down for hackathon reality.** True live CCTV + YOLO detection is a multi-week CV project. Recommended MVP: an "upload/simulate a frame" endpoint (`POST /api/cctv/detect`) that runs a pretrained, off-the-shelf object-detection model (e.g. a hosted vision API, or a small pretrained classifier) against an uploaded image, returns `{ garbage_detected, confidence, estimated_severity }`, and auto-creates a `WasteIncident` — mirrors the exact "AI Detection → incident" flow in the brief without needing a custom-trained model or live camera feed. Flag this as a judgment call — confirm scope with the user before building (see §7 open questions). |
+| **8 — CCTV Intelligence** | Not started; no controller/model | **Scope down for hackathon reality.** True live CCTV + YOLO detection is a multi-week CV project. Recommended MVP: an "upload/simulate a frame" endpoint (`POST /api/cctv/detect`) that runs a pretrained, off-the-shelf object-detection model (e.g. a hosted vision API, or a small pretrained classifier) against an uploaded image, returns `{ garbage_detected, confidence, estimated_severity }`, and auto-creates a `WasteIncident` — mirrors the exact "AI Detection  incident" flow in the brief without needing a custom-trained model or live camera feed. Flag this as a judgment call — confirm scope with the user before building (see §7 open questions). |
 | **Command Center data needs** | New dashboard (Workstream C) wants trend charts, not just current snapshot | Add `GET /api/stats/trends?metric=fillPct&range=7d` style endpoints aggregating `WastePrediction`/`BinData` history over time — needed for the Recharts trend lines described in §4. |
 
 ---
@@ -127,7 +127,7 @@ Uses the skills installed this session: `frontend-design` (aesthetic direction),
 The brief's "killer demo" framing and multi-role pitch (§54, §58 of the PRD) suggests a short marketing/pitch landing page ahead of the login screen would strengthen a hackathon demo — this is exactly what the `landing-page-design` skill was installed for. **Confirm with user before building** (adds scope); if yes, it's a single new route (`/`) with the existing `AuthPage` moving to `/login`.
 
 ### 4.4 Final polish pass (do this last, per-screen, before calling any screen "done")
-Run `visual-critique:critique-screen` on each rebuilt screen → fix flagged issues using the referenced `ui-design`/`interaction-design` skill → re-run `find-animation-opportunities` to catch any UI moment that should move but doesn't → accessibility pass via `chrome-devtools-mcp:a11y-debugging` (keyboard nav, focus states, contrast, tap targets — non-negotiable given `CollectorDashboard`'s field-use context).
+Run `visual-critique:critique-screen` on each rebuilt screen  fix flagged issues using the referenced `ui-design`/`interaction-design` skill  re-run `find-animation-opportunities` to catch any UI moment that should move but doesn't  accessibility pass via `chrome-devtools-mcp:a11y-debugging` (keyboard nav, focus states, contrast, tap targets — non-negotiable given `CollectorDashboard`'s field-use context).
 
 ---
 

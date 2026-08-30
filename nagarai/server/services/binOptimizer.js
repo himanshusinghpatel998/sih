@@ -52,14 +52,14 @@ const demandScore = (signals) => {
   return Math.round(clamp100(score));
 };
 
-// Normalize helpers (raw → 0..100)
+// Normalize helpers (raw  0..100)
 const normWaste = (kgDay, cap = 1000) => clamp100((kgDay / (cap * 0.9)) * 100);
 const normFootfall = (ff) => clamp100((ff / 50000) * 100);
 const normFood = (count) => clamp100((count / 10) * 100);
 const normOverflow = (count) => clamp100((count / 10) * 100);
 const normPopulation = (density) => clamp100((density / 15000) * 100);
 const normDistance = (distM) => {
-  // wider gaps from existing bins → higher need; cap at ~500m
+  // wider gaps from existing bins  higher need; cap at ~500m
   return distM == null ? 100 : clamp100((distM / 500) * 100);
 };
 

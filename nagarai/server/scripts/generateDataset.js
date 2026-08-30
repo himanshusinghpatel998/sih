@@ -87,6 +87,6 @@ const run = async () => {
 };
 
 run().then(() => process.exit(0)).catch((e) => {
-  console.error('❌ Failed:', e.message);
+  console.error(' Failed:', e.message);
   process.exit(1);
 });
