@@ -14,6 +14,8 @@ import {
   Sparkles,
   MapPin,
   Loader2,
+  ListChecks,
+  Activity,
 } from "lucide-react";
 import {
   BarChart,
@@ -38,12 +40,15 @@ import {
   generateRoutes,
   deployRoutes,
   getWorkforce,
+  getTasks,
+  deleteTask,
   getIncidents,
   getMLStatus,
   analyzeSweeping,
   detectCctvFrame,
 } from "../../services/api";
 import { Button } from "../../components/ui/Button";
+import Modal from "../../components/ui/Modal";
 import {
   Card,
   CardHeader,
@@ -70,6 +75,96 @@ const statusVariant = (status) => {
   if (["completed", "resolved"].includes(s)) return "success";
   if (["in-progress", "in_progress", "assigned"].includes(s)) return "warning";
   return "muted";
+};
+
+// Live fill classification for the "Live Metrics" panel
+const fillStatus = (pct) => {
+  if (pct == null) return { label: "Unknown", variant: "muted" };
+  if (pct >= 90) return { label: "Critical", variant: "danger" };
+  if (pct >= 70) return { label: "Nearly full", variant: "danger" };
+  if (pct >= 50) return { label: "Half full", variant: "warning" };
+  if (pct >= 25) return { label: "Filling", variant: "warning" };
+  return { label: "Okay", variant: "success" };
+};
+
+// Hardcoded DEMO data keyed deterministically by bin id — used only for the
+// demo. Not wired to any sensor feed.
+const WASTE_TYPES = ["wet", "mixed", "dry"];
+const ZONES_DEMO = ["Z1", "Z2", "Z3", "Z4", "Z5", "Z6"];
+const ZONE_LABEL = {
+  Z1: "Old Market",
+  Z2: "College Road",
+  Z3: "Railway Area",
+  Z4: "Residential North",
+  Z5: "Food Street",
+  Z6: "Riverside Park",
+};
+const EVENTS = [
+  { name: "Food & Cultural Festival", on: "Festival weekend" },
+  { name: "Sunday Market", on: "Weekly" },
+  { name: "College Convocation", on: "Aug 15" },
+  { name: "Religious Gathering", on: "Festival day" },
+];
+const RESTAURANTS = [12, 5, 8, 3, 18, 6];
+const MARKETS = [6, 2, 4, 1, 9, 3];
+
+const getBinDemo = (binId) => {
+  const num = parseInt(String(binId).replace(/\D/g, ""), 10) || 100;
+  const seed = num % 101;
+  const zone = ZONES_DEMO[num % ZONES_DEMO.length];
+  const capacityL = [120, 240, 660, 1100][num % 4];
+  const currentLevel = 15 + ((seed * 7) % 85);
+  const estWasteKg = Math.round((capacityL * 0.7 * (currentLevel / 100)) / 5) * 5;
+  const wasteType = WASTE_TYPES[num % WASTE_TYPES.length];
+  const iotStatus = num % 8 === 0 ? "offline" : num % 13 === 0 ? "charging" : "online";
+  const footfall = 5000 + ((seed * 379) % 45000);
+  const avgFillRate = +(2 + ((seed * 13) % 90) / 10).toFixed(1); // %/hr
+  const overflows = num % 5 === 0 ? 1 + (num % 3) : 0;
+  const rain = +((seed * 17) % 1200) / 100; // mm
+  const today = new Date();
+  const lastUpdate = today.toISOString().slice(0, 16).replace("T", " ");
+
+  const hoursAgo = (h) => {
+    const d = new Date(today.getTime() - h * 3600 * 1000);
+    return d.toISOString().slice(0, 16).replace("T", " ");
+  };
+
+  return {
+    binId,
+    location: {
+      lat: +(19 + ((seed * 11) % 6000) / 100000).toFixed(5),
+      lng: +(72.87 + ((seed * 17) % 6000) / 100000).toFixed(5),
+    },
+    capacityL,
+    currentLevel,
+    estWasteKg,
+    wasteType,
+    iotStatus,
+    lastUpdate,
+    zone: `${zone} · ${ZONE_LABEL[zone]}`,
+    // ---- Historical ----
+    history24h: [14, 22, 30, 41, 55, 68, 76, currentLevel],
+    history7d: [12, 30, 48, 61, 74, 88, 95],
+    history30d: 31 + ((seed * 3) % 40), // avg daily pick
+    wastePerDay: Math.round((estWasteKg || capacityL * 0.4) * 1.8),
+    wastePerCollection: Math.round((estWasteKg || 120) * 1.2),
+    prevCollectionDates: [
+      hoursAgo(8),
+      hoursAgo(32),
+      hoursAgo(56),
+      hoursAgo(80),
+    ],
+    avgFillRate,
+    overflows,
+    // ---- Environmental / context ----
+    temperature: +(26 + ((seed * 5) % 120) / 10).toFixed(1),
+    rainfall: rain,
+    humidity: 55 + ((seed * 3) % 40),
+    footfall,
+    nearbyRestaurants: RESTAURANTS[num % RESTAURANTS.length],
+    nearbyMarkets: MARKETS[num % MARKETS.length],
+    event: num % 6 === 0 ? EVENTS[num % EVENTS.length] : null,
+  };
 };
 
 const CHART_COLORS = {
@@ -128,6 +223,156 @@ function DirtBar({ score }) {
   );
 }
 
+function DetailRow({ label, children }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border/60 py-1.5 text-sm last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-medium text-foreground">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function DetailSection({ icon: Icon, title, children }) {
+  return (
+    <div className="rounded-lg border border-border p-4">
+      <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {title}
+      </h4>
+      {children}
+    </div>
+  );
+}
+
+function BinDetailPanel({ demo, onClose }) {
+  const st = fillStatus(demo.currentLevel);
+  const hist = [...demo.history24h];
+  const maxHist = Math.max(100, ...hist);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MapPin className="h-4 w-4" /> {demo.binId}
+          <Badge variant={st.variant}>{st.label}</Badge>
+          <span className="text-xs font-normal text-muted-foreground">
+            {demo.zone}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onClose}
+            className="ml-auto"
+          >
+            Close
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {/* 1. Current bin status */}
+        <DetailSection icon={Activity} title="Current status">
+          <DetailRow label="Location">
+            {demo.location.lat}, {demo.location.lng}
+          </DetailRow>
+          <DetailRow label="Bin capacity">{demo.capacityL} L</DetailRow>
+          <DetailRow label="Current fill">{demo.currentLevel}%</DetailRow>
+          <DetailRow label="Estimated waste">
+            {demo.estWasteKg} kg
+          </DetailRow>
+          <DetailRow label="Waste type">
+            <span className="capitalize">{demo.wasteType}</span>
+          </DetailRow>
+          <DetailRow label="IoT sensor">
+            <Badge
+              variant={
+                demo.iotStatus === "online"
+                  ? "success"
+                  : demo.iotStatus === "offline"
+                    ? "danger"
+                    : "warning"
+              }
+            >
+              {demo.iotStatus}
+            </Badge>
+          </DetailRow>
+          <DetailRow label="Last update">{demo.lastUpdate}</DetailRow>
+        </DetailSection>
+
+        {/* 2. Historical information */}
+        <DetailSection icon={CalendarClock} title="Historical info">
+          <div className="mb-3">
+            <p className="mb-1 text-xs text-muted-foreground">
+              Fill level — last 24h
+            </p>
+            <div className="flex items-end gap-1">
+              {hist.map((v, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "flex-1 rounded-t",
+                    fillStatus(v).variant === "danger"
+                      ? "bg-danger-500"
+                      : fillStatus(v).variant === "warning"
+                        ? "bg-signal-500"
+                        : "bg-success-500",
+                  )}
+                  style={{ height: `${(v / maxHist) * 84}px` }}
+                  title={`${v}%`}
+                />
+              ))}
+            </div>
+          </div>
+          <DetailRow label="Avg daily waste">
+            {demo.wastePerDay} kg/day
+          </DetailRow>
+          <DetailRow label="Per collection">
+            {demo.wastePerCollection} kg
+          </DetailRow>
+          <DetailRow label="Avg filling rate">
+            {demo.avgFillRate} %/hr
+          </DetailRow>
+          <DetailRow label="Previous overflows">
+            {demo.overflows}
+          </DetailRow>
+          <DetailRow label="Last collected">
+            {demo.prevCollectionDates[0]}
+          </DetailRow>
+        </DetailSection>
+
+        {/* 3. Environmental / context */}
+        <DetailSection icon={Wind} title="Environment & context">
+          <DetailRow label="Temperature">
+            {demo.temperature} °C
+          </DetailRow>
+          <DetailRow label="Rainfall">{demo.rainfall} mm</DetailRow>
+          <DetailRow label="Humidity">{demo.humidity}%</DetailRow>
+          <DetailRow label="Footfall">
+            {fmt(demo.footfall)}/day
+          </DetailRow>
+          <DetailRow label="Nearby restaurants">
+            {demo.nearbyRestaurants}
+          </DetailRow>
+          <DetailRow label="Nearby markets">
+            {demo.nearbyMarkets}
+          </DetailRow>
+          <DetailRow label="Event">
+            {demo.event ? (
+              <span>
+                {demo.event.name}{" "}
+                <span className="text-xs text-muted-foreground">
+                  ({demo.event.on})
+                </span>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">None scheduled</span>
+            )}
+          </DetailRow>
+        </DetailSection>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function NagaraiCommandCenter() {
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -137,14 +382,18 @@ export default function NagaraiCommandCenter() {
   const [escalated, setEscalated] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [unassigned, setUnassigned] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [events, setEvents] = useState([]);
   const [workforce, setWorkforce] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  const [optimized, setOptimized] = useState(false);
   const [incidents, setIncidents] = useState([]);
   const [mlStatus, setMlStatus] = useState(null);
   const [engineUsed, setEngineUsed] = useState(null);
   const [busy, setBusy] = useState("");
   const [predTable, setPredTable] = useState([]);
+  const [selectedBin, setSelectedBin] = useState(null);
   const [simResult, setSimResult] = useState(null);
   const [simForm, setSimForm] = useState({
     eventType: "",
@@ -233,12 +482,53 @@ export default function NagaraiCommandCenter() {
       const r = await deployRoutes({ weather: "clear" });
       setRoutes((r.data && r.data.routes) || []);
       setUnassigned((r.data && r.data.unassigned) || []);
+      const t = await getTasks();
+      setTasks(t.data || []);
       toast.success("Routes deployed — tasks created");
     } catch (e) {
       setErr("Deploy failed.");
       toast.error("Deploy failed");
     }
     setBusy("");
+  };
+
+  // Opens the confirmation dialog for a specific task
+  const requestDelete = (id) => setConfirmDelete(id);
+
+  // Performs the actual delete (called after the undo-toast window closes)
+  const performDelete = async (id) => {
+    try {
+      await deleteTask(id);
+      setTasks((prev) => prev.filter((t) => (t._id || t.taskId) !== id));
+    } catch (e) {
+      toast.error("Failed to delete task");
+    }
+  };
+
+  // Confirmed from dialog: show an undo toast and delete only when it expires
+  const confirmDeleteTask = async () => {
+    const id = confirmDelete;
+    setConfirmDelete(null);
+    if (!id) return;
+
+    let cancelled = false;
+    toast("Deleting task…", {
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          cancelled = true;
+          toast.success("Delete undone");
+        },
+      },
+    });
+
+    // Wait for the toast window; perform the delete if not undone
+    setTimeout(async () => {
+      if (cancelled) return;
+      await performDelete(id);
+      toast.success("Task deleted");
+    }, 6000);
   };
 
   const handleOptimizeBins = async () => {
@@ -248,6 +538,7 @@ export default function NagaraiCommandCenter() {
       await optimizeBins();
       const recs = await getBinRecommendations();
       setRecommendations(recs.data || []);
+      setOptimized(true);
       toast.success("Bin optimization complete");
     } catch (e) {
       setErr("Bin optimization failed.");
@@ -637,103 +928,207 @@ export default function NagaraiCommandCenter() {
 
         {/* ============ PREDICTIONS ============ */}
         {tab === "prediction" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Cpu className="h-4 w-4" /> Prediction engine{" "}
-                {engineUsed === "xgboost-live"
-                  ? "— real XGBoost models"
-                  : "— rule/seasonal"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Fill % across 1h/6h/12h/24h/48h/7d for every bin.
-              </p>
-              <Button
-                onClick={async () => {
-                  setBusy("pred");
-                  setErr(null);
-                  try {
-                    const r = await runPredictions({ weather: "clear" });
-                    setPredTable(r.data?.results || []);
-                    setEngineUsed(r.data?.engine || "rule");
-                  } catch {
-                    setErr("Prediction failed.");
-                  }
-                  setBusy("");
-                }}
-                disabled={busy === "pred"}
-              >
-                {busy === "pred" && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
-                {busy === "pred" ? "Running…" : "Run prediction now"}
-              </Button>
-              <div className="max-h-[28rem] overflow-auto">
-                {predTable.length ? (
-                  <table className="w-full">
-                    <thead>
-                      <tr>
-                        <Th>Bin</Th>
-                        <Th>Zone</Th>
-                        <Th>Now</Th>
-                        <Th>6h</Th>
-                        <Th>12h</Th>
-                        <Th>24h</Th>
-                        <Th>48h</Th>
-                        <Th>Risk</Th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {predTable.map((r) => (
-                        <tr key={r.binId}>
-                          <Td className="font-mono-data font-medium">
-                            {r.binId}
-                          </Td>
-                          <Td className="text-muted-foreground">
-                            {r.zone || "—"}
-                          </Td>
-                          <Td>{r.currentLevel}%</Td>
-                          <Td
-                            className={pctTone(
-                              r.predictions?.["6h"]?.predictedFillPct,
-                            )}
-                          >
-                            {r.predictions?.["6h"]?.predictedFillPct}%
-                          </Td>
-                          <Td
-                            className={pctTone(
-                              r.predictions?.["12h"]?.predictedFillPct,
-                            )}
-                          >
-                            {r.predictions?.["12h"]?.predictedFillPct}%
-                          </Td>
-                          <Td
-                            className={pctTone(
-                              r.predictions?.["24h"]?.predictedFillPct,
-                            )}
-                          >
-                            {r.predictions?.["24h"]?.predictedFillPct}%
-                          </Td>
-                          <Td>{r.predictions?.["48h"]?.predictedFillPct}%</Td>
-                          <Td>
-                            <Badge variant={riskVariant(r.riskScore)}>
-                              {r.riskScore}
-                            </Badge>
-                          </Td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Click "Run prediction now" to populate.
+          <div className="space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Cpu className="h-4 w-4" /> Prediction engine{" "}
+                  {engineUsed === "xgboost-live"
+                    ? "— real XGBoost models"
+                    : "— rule/seasonal"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Fill % across 6h/12h/24h/48h for every bin.
+                </p>
+                <Button
+                  onClick={async () => {
+                    setBusy("pred");
+                    setErr(null);
+                    try {
+                      const r = await runPredictions({ weather: "clear" });
+                      setPredTable(r.data?.results || []);
+                      setEngineUsed(r.data?.engine || "rule");
+                    } catch {
+                      setErr("Prediction failed.");
+                    }
+                    setBusy("");
+                  }}
+                  disabled={busy === "pred"}
+                >
+                  {busy === "pred" && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {busy === "pred" ? "Running…" : "Run prediction now"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {/* Digital Twin Predictions panel */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" /> Digital Twin Predictions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-h-[28rem] overflow-auto">
+                    {predTable.length ? (
+                      <table className="w-full">
+                        <thead>
+                          <tr>
+                            <Th>Bin</Th>
+                            <Th>Zone</Th>
+                            <Th>6h</Th>
+                            <Th>12h</Th>
+                            <Th>24h</Th>
+                            <Th>48h</Th>
+                            <Th>Risk</Th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {predTable.map((r) => (
+                            <tr key={r.binId}>
+                              <Td className="font-mono-data font-medium">
+                                {r.binId}
+                              </Td>
+                              <Td className="text-muted-foreground">
+                                {r.zone || "—"}
+                              </Td>
+                              <Td
+                                className={pctTone(
+                                  r.predictions?.["6h"]?.predictedFillPct,
+                                )}
+                              >
+                                {r.predictions?.["6h"]?.predictedFillPct}%
+                              </Td>
+                              <Td
+                                className={pctTone(
+                                  r.predictions?.["12h"]?.predictedFillPct,
+                                )}
+                              >
+                                {r.predictions?.["12h"]?.predictedFillPct}%
+                              </Td>
+                              <Td
+                                className={pctTone(
+                                  r.predictions?.["24h"]?.predictedFillPct,
+                                )}
+                              >
+                                {r.predictions?.["24h"]?.predictedFillPct}%
+                              </Td>
+                              <Td>
+                                {r.predictions?.["48h"]?.predictedFillPct}%
+                              </Td>
+                              <Td>
+                                <Badge variant={riskVariant(r.riskScore)}>
+                                  {r.riskScore}
+                                </Badge>
+                              </Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Click "Run prediction now" to populate.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Live Metrics panel */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-4 w-4" /> Live Metrics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Click a row to inspect full bin details below.
                   </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="max-h-[28rem] overflow-auto">
+                    {predTable.length ? (
+                      <table className="w-full">
+                        <thead>
+                          <tr>
+                            <Th>Bin</Th>
+                            <Th>Now</Th>
+                            <Th>Status</Th>
+                            <Th>Capacity</Th>
+                            <Th>Waste (kg)</Th>
+                            <Th>Type</Th>
+                            <Th>IoT</Th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {predTable.map((r) => {
+                            const st = fillStatus(r.currentLevel);
+                            const demo = getBinDemo(r.binId);
+                            const active = selectedBin === r.binId;
+                            return (
+                              <tr
+                                key={r.binId}
+                                onClick={() => setSelectedBin(r.binId)}
+                                className={cn(
+                                  "cursor-pointer transition-colors hover:bg-muted",
+                                  active && "bg-muted",
+                                )}
+                              >
+                                <Td className="font-mono-data font-medium">
+                                  {r.binId}
+                                </Td>
+                                <Td className={pctTone(r.currentLevel)}>
+                                  {r.currentLevel}%
+                                </Td>
+                                <Td>
+                                  <Badge variant={st.variant}>
+                                    {st.label}
+                                  </Badge>
+                                </Td>
+                                <Td>{demo.capacityL} L</Td>
+                                <Td>{demo.estWasteKg} kg</Td>
+                                <Td className="capitalize">
+                                  {demo.wasteType}
+                                </Td>
+                                <Td>
+                                  <Badge
+                                    variant={
+                                      demo.iotStatus === "online"
+                                        ? "success"
+                                        : demo.iotStatus === "offline"
+                                          ? "danger"
+                                          : "warning"
+                                    }
+                                  >
+                                    {demo.iotStatus}
+                                  </Badge>
+                                </Td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Click "Run prediction now" to populate.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {selectedBin && (
+              <BinDetailPanel
+                demo={getBinDemo(selectedBin)}
+                onClose={() => setSelectedBin(null)}
+              />
+            )}
+          </div>
         )}
 
         {/* ============ ROUTES ============ */}
@@ -825,8 +1220,92 @@ export default function NagaraiCommandCenter() {
                 Generate routes to see the plan.
               </p>
             )}
+
+            {tasks.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ListChecks className="h-4 w-4" /> Collection tasks
+                    <Badge variant="success">{tasks.length} created</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <table className="w-full">
+                    <thead>
+                      <tr>
+                        <Th>Task ID</Th>
+                        <Th>Status</Th>
+                        <Th>Priority</Th>
+                        <Th>Bins / Stops</Th>
+                        <Th>Est. work</Th>
+                        <Th>Actions</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {tasks.map((t) => (
+                        <tr key={t._id || t.taskId}>
+                          <Td className="font-medium">{t.taskId}</Td>
+                          <Td>
+                            <Badge variant={statusVariant(t.status)}>
+                              {t.status}
+                            </Badge>
+                          </Td>
+                          <Td>
+                            <Badge variant={riskVariant(t.priority || 0)}>
+                              {t.priority ?? "—"}
+                            </Badge>
+                          </Td>
+                          <Td>
+                            {t.bin ? `1 bin (${t.bin.binId})` : "Multi-stop"}
+                          </Td>
+                          <Td>
+                            {t.estimatedWorkMin != null
+                              ? `${t.estimatedWorkMin} min`
+                              : "—"}
+                          </Td>
+                          <Td>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => requestDelete(t._id || t.taskId)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                            </Button>
+                          </Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
+
+        <Modal
+          id="confirm-delete-task"
+          isOpen={!!confirmDelete}
+          onClose={() => setConfirmDelete(null)}
+          title="Delete collection task"
+        >
+          <div className="space-y-4 p-5">
+            <p className="text-sm text-muted-foreground">
+              This task will be deleted. You can undo this action from the
+              toast once confirmed.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={confirmDeleteTask}>
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         {/* ============ BIN OPTIMIZER ============ */}
         {tab === "bins" && (
@@ -890,7 +1369,9 @@ export default function NagaraiCommandCenter() {
                     {!recommendations.length && (
                       <tr>
                         <Td className="text-muted-foreground">
-                          Run optimization to see recommended bin actions.
+                          {optimized
+                            ? "Optimization complete — no bin actions needed."
+                            : "Run optimization to see recommended bin actions."}
                         </Td>
                       </tr>
                     )}

@@ -369,7 +369,7 @@ export default function CollectorDashboard() {
               <Card>
                 <CardContent className="overflow-x-auto pt-5">
                   <table className="w-full">
-                    <thead><tr><Th>Order</Th><Th>Student</Th><Th>Points</Th><Th>Status</Th><Th>Action</Th></tr></thead>
+                    <thead><tr><Th>Order</Th><Th>Citizen</Th><Th>Points</Th><Th>Status</Th><Th>Action</Th></tr></thead>
                     <tbody className="divide-y divide-border">
                       {storeOrders.length === 0 ? <tr><td colSpan={5}><EmptyState icon={ShoppingCart} title="No orders available" desc={`Active redemptions from Block ${user.block || 'your block'} appear here.`} /></td></tr> : storeOrders.map((o) => (
                         <tr key={o.orderId}>
@@ -602,7 +602,7 @@ export default function CollectorDashboard() {
             {selectedOrder.status === 'ready_for_pickup' && (
               <div className="rounded-lg border border-signal-500/30 bg-signal-500/10 p-3">
                 <p className="text-sm font-semibold text-signal-600 dark:text-signal-400">Delivery verification required</p>
-                <p className="mb-2 text-xs text-muted-foreground">Enter the student's pickup code.</p>
+                <p className="mb-2 text-xs text-muted-foreground">Enter the citizen's pickup code.</p>
                 <input className={cn(FIELD, 'text-center font-mono-data tracking-widest')} maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.toUpperCase())} placeholder="X7K9P2" disabled={selectedOrder.failedAttempts >= 3} />
               </div>
             )}

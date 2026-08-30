@@ -285,8 +285,13 @@ export default function AuthPage() {
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-zinc-800/50 pt-6 text-sm font-medium text-zinc-400">
-            <span>Predictive Municipal Sanitation Intelligence</span>
+          <div className="flex items-center justify-between border-t border-zinc-800/50 pt-6 text-sm font-medium text-green-800">
+            <div className="bg-white/90 rounded-2xl">
+              <span className="p-2">
+                Predictive Municipal Sanitation Intelligence
+              </span>
+            </div>
+
             <span>© {new Date().getFullYear()} All rights reserved</span>
           </div>
         </div>
@@ -527,7 +532,7 @@ export default function AuthPage() {
                   />
                   <Field
                     icon={BookOpen}
-                    placeholder="Department (optional)"
+                    placeholder="Area (optional)"
                     value={suDept}
                     onChange={(e) => setSuDept(e.target.value)}
                   />
