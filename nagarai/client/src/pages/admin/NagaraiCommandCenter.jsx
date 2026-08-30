@@ -108,6 +108,32 @@ const EVENTS = [
 const RESTAURANTS = [12, 5, 8, 3, 18, 6];
 const MARKETS = [6, 2, 4, 1, 9, 3];
 
+// Hardcoded DEMO staffing per zone — shown only when the backend returns no
+// workforce data so the "Staffing needs by zone" view is always populated.
+const WORKFORCE_DEMO = [
+  { zone: "Z1", name: "Old Market", bins: 14, footfall: 48000, areaM2: 52000, eventMultiplier: 1.4, collectors: 8, vehicles: 3, sweepers: 6 },
+  { zone: "Z2", name: "College Road", bins: 11, footfall: 32000, areaM2: 38000, eventMultiplier: 1.1, collectors: 6, vehicles: 2, sweepers: 4 },
+  { zone: "Z3", name: "Railway Area", bins: 9, footfall: 27000, areaM2: 30000, eventMultiplier: 1.2, collectors: 5, vehicles: 2, sweepers: 3 },
+  { zone: "Z4", name: "Residential North", bins: 18, footfall: 15000, areaM2: 64000, eventMultiplier: 1.0, collectors: 7, vehicles: 3, sweepers: 5 },
+  { zone: "Z5", name: "Food Street", bins: 16, footfall: 41000, areaM2: 26000, eventMultiplier: 1.5, collectors: 9, vehicles: 3, sweepers: 5 },
+  { zone: "Z6", name: "Riverside Park", bins: 6, footfall: 9000, areaM2: 45000, eventMultiplier: 1.0, collectors: 3, vehicles: 1, sweepers: 3 },
+].map((z) => ({
+  zone: z.zone,
+  name: z.name,
+  bins: z.bins,
+  predictedKg: z.footfall * 0.12,
+  footfall: z.footfall,
+  areaM2: z.areaM2,
+  eventMultiplier: z.eventMultiplier,
+  staffing: {
+    collectors: z.collectors,
+    vehicles: z.vehicles,
+    sweepers: z.sweepers,
+    supervisors: Math.max(0, Math.ceil(z.collectors / 6)),
+    totalStaff: z.collectors + z.sweepers + Math.max(0, Math.ceil(z.collectors / 6)),
+  },
+}));
+
 const getBinDemo = (binId) => {
   const num = parseInt(String(binId).replace(/\D/g, ""), 10) || 100;
   const seed = num % 101;
@@ -233,6 +259,34 @@ function DetailRow({ label, children }) {
     </div>
   );
 }
+
+const SIM_EVENT_LABEL = {
+  festival: "Festival",
+  concert: "Concert",
+  sports: "Sports",
+  fair: "Fair",
+  market: "Market",
+  "": "No event",
+};
+const SIM_WEATHER_LABEL = {
+  clear: "Clear",
+  rain: "Rain",
+  heavy_rain: "Heavy rain",
+};
+
+function SimField({ label, children }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+const simInputCls =
+  "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20";
 
 function DetailSection({ icon: Icon, title, children }) {
   return (
@@ -395,6 +449,7 @@ export default function NagaraiCommandCenter() {
   const [predTable, setPredTable] = useState([]);
   const [selectedBin, setSelectedBin] = useState(null);
   const [simResult, setSimResult] = useState(null);
+  const [selectedSimBinId, setSelectedSimBinId] = useState(null);
   const [simForm, setSimForm] = useState({
     eventType: "",
     expectedAttendance: 0,
@@ -422,7 +477,8 @@ export default function NagaraiCommandCenter() {
       ]);
       setBins(b.data || []);
       setEvents(ev.data || []);
-      setWorkforce(w.data || []);
+      const wf = w.data || [];
+      setWorkforce(wf.length ? wf : WORKFORCE_DEMO);
       setIncidents(inc.data || []);
       setMlStatus(ml.data || null);
       return { bins: b.data || [], events: ev.data || [] };
@@ -554,6 +610,7 @@ export default function NagaraiCommandCenter() {
     try {
       const res = await API.post("/simulate", simForm);
       setSimResult(res.data);
+      setSelectedSimBinId(res.data.trajectories?.[0]?.binId ?? null);
     } catch (e) {
       setErr("Simulation failed.");
       toast.error("Simulation failed");
@@ -638,7 +695,10 @@ export default function NagaraiCommandCenter() {
     fill24h: r.predictions?.["24h"]?.predictedFillPct || 0,
   }));
 
-  const simCurve = simResult?.trajectories?.[0]?.curve || [];
+  const simSelected =
+    simResult?.trajectories?.find((t) => t.binId === selectedSimBinId) ||
+    simResult?.trajectories?.[0];
+  const simCurve = simSelected?.curve || [];
 
   return (
     <div className="min-h-screen space-y-6 p-4 md:p-6">
@@ -1498,121 +1558,210 @@ export default function NagaraiCommandCenter() {
 
         {/* ============ SIMULATOR ============ */}
         {tab === "simulator" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FlaskConical className="h-4 w-4" /> What-If Simulator
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                <select
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-                  value={simForm.eventType}
-                  onChange={(e) =>
-                    setSimForm({ ...simForm, eventType: e.target.value })
-                  }
-                >
-                  <option value="">No event</option>
-                  <option value="festival">Festival</option>
-                  <option value="concert">Concert</option>
-                  <option value="sports">Sports</option>
-                  <option value="fair">Fair</option>
-                  <option value="market">Market</option>
-                </select>
-                <input
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-                  type="number"
-                  placeholder="Expected attendance"
-                  value={simForm.expectedAttendance}
-                  onChange={(e) =>
-                    setSimForm({
-                      ...simForm,
-                      expectedAttendance: parseInt(e.target.value) || 0,
-                    })
-                  }
-                />
-                <select
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-                  value={simForm.weather}
-                  onChange={(e) =>
-                    setSimForm({ ...simForm, weather: e.target.value })
-                  }
-                >
-                  <option value="clear">Clear</option>
-                  <option value="rain">Rain</option>
-                  <option value="heavy_rain">Heavy rain</option>
-                </select>
-                <input
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-                  type="number"
-                  min="1"
-                  max="168"
-                  placeholder="Hours"
-                  value={simForm.hours}
-                  onChange={(e) =>
-                    setSimForm({
-                      ...simForm,
-                      hours: parseInt(e.target.value) || 24,
-                    })
-                  }
-                />
-                <input
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-                  type="number"
-                  min="0"
-                  max="24"
-                  placeholder="Collection freq (hrs)"
-                  value={simForm.collectionFrequencyHrs}
-                  onChange={(e) =>
-                    setSimForm({
-                      ...simForm,
-                      collectionFrequencyHrs: parseInt(e.target.value) || 0,
-                    })
-                  }
-                />
-              </div>
-              <Button onClick={runSimulation} disabled={busy === "sim"}>
-                {busy === "sim" ? "Simulating…" : "Run Simulation"}
-              </Button>
-
-              {simResult && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="space-y-4 border-t border-border pt-4"
-                >
-                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <AnimatedStat
-                      label="Bins simulated"
-                      value={simResult.summary.binsSimulated}
-                      tone="brand"
-                    />
-                    <AnimatedStat
-                      label="Overflows"
-                      value={simResult.summary.overflows}
-                      tone="danger"
-                    />
-                    <AnimatedStat
-                      label="Peak waste (kg)"
-                      value={simResult.summary.peakInventoryKg}
-                      tone="signal"
-                    />
-                    <AnimatedStat
-                      label="First overflow (hr)"
-                      value={simResult.summary.firstOverflowHour ?? 0}
-                      tone="brand"
-                    />
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4" /> What-If Simulator
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Define scenario
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
+                    <SimField label="Event type">
+                      <select
+                        className={simInputCls}
+                        value={simForm.eventType}
+                        onChange={(e) =>
+                          setSimForm({ ...simForm, eventType: e.target.value })
+                        }
+                      >
+                        <option value="">No event</option>
+                        <option value="festival">Festival</option>
+                        <option value="concert">Concert</option>
+                        <option value="sports">Sports</option>
+                        <option value="fair">Fair</option>
+                        <option value="market">Market</option>
+                      </select>
+                    </SimField>
+                    <SimField label="Expected attendance">
+                      <input
+                        className={simInputCls}
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 30000"
+                        value={simForm.expectedAttendance}
+                        onChange={(e) =>
+                          setSimForm({
+                            ...simForm,
+                            expectedAttendance: parseInt(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </SimField>
+                    <SimField label="Weather">
+                      <select
+                        className={simInputCls}
+                        value={simForm.weather}
+                        onChange={(e) =>
+                          setSimForm({ ...simForm, weather: e.target.value })
+                        }
+                      >
+                        <option value="clear">Clear</option>
+                        <option value="rain">Rain</option>
+                        <option value="heavy_rain">Heavy rain</option>
+                      </select>
+                    </SimField>
+                    <SimField label="Hours simulated">
+                      <input
+                        className={simInputCls}
+                        type="number"
+                        min="1"
+                        max="168"
+                        placeholder="24"
+                        value={simForm.hours}
+                        onChange={(e) =>
+                          setSimForm({
+                            ...simForm,
+                            hours: parseInt(e.target.value) || 24,
+                          })
+                        }
+                      />
+                    </SimField>
+                    <SimField label="Collection every (hrs)">
+                      <input
+                        className={simInputCls}
+                        type="number"
+                        min="0"
+                        max="24"
+                        placeholder="0 = never"
+                        value={simForm.collectionFrequencyHrs}
+                        onChange={(e) =>
+                          setSimForm({
+                            ...simForm,
+                            collectionFrequencyHrs: parseInt(e.target.value) ||
+                              0,
+                          })
+                        }
+                      />
+                    </SimField>
                   </div>
-                  {simCurve.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>
-                          Sample trajectory — {simResult.trajectories[0].binId}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ResponsiveContainer width="100%" height={180}>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button onClick={runSimulation} disabled={busy === "sim"}>
+                    {busy === "sim" ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Simulating…
+                      </>
+                    ) : (
+                      "Run Simulation"
+                    )}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Tip: set attendance + a festival event to stress-test city
+                    capacity.
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {simResult && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge>
+                    <FlaskConical className="h-3 w-3" />{" "}
+                    {SIM_EVENT_LABEL[simForm.eventType] || "No event"}
+                  </Badge>
+                  {simForm.expectedAttendance > 0 && (
+                    <Badge variant="warning">
+                      {fmt(simForm.expectedAttendance)} attendees
+                    </Badge>
+                  )}
+                  <Badge variant="muted">
+                    {SIM_WEATHER_LABEL[simForm.weather]}
+                  </Badge>
+                  <Badge variant="muted">{simForm.hours}h window</Badge>
+                  <Badge variant="muted">
+                    Event load ×{simResult.eventWasteMultiplier}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <AnimatedStat
+                    icon={Trash2}
+                    label="Bins simulated"
+                    value={simResult.summary.binsSimulated}
+                    tone="brand"
+                  />
+                  <AnimatedStat
+                    icon={AlertTriangle}
+                    label="Overflows"
+                    value={simResult.summary.overflows}
+                    tone="danger"
+                  />
+                  <AnimatedStat
+                    icon={Activity}
+                    label="Peak waste (kg)"
+                    value={simResult.summary.peakInventoryKg}
+                    tone="signal"
+                  />
+                  <AnimatedStat
+                    icon={CalendarClock}
+                    label="First overflow (hr)"
+                    value={simResult.summary.firstOverflowHour ?? 0}
+                    tone="brand"
+                  />
+                </div>
+
+                {simResult.trajectories.length > 0 && (
+                  <Card>
+                    <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+                      <CardTitle>Bin fill trajectory</CardTitle>
+                      <select
+                        className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm"
+                        value={selectedSimBinId || ""}
+                        onChange={(e) => setSelectedSimBinId(e.target.value)}
+                      >
+                        {simResult.trajectories.map((t) => (
+                          <option key={t.binId} value={t.binId}>
+                            {t.binId} — {t.zone}
+                          </option>
+                        ))}
+                      </select>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <Badge variant="muted">
+                          Zone {simSelected?.zone}
+                        </Badge>
+                        <Badge variant="muted">
+                          {simSelected?.capacityL} L capacity
+                        </Badge>
+                        <Badge variant="muted">
+                          Start {simSelected?.startLevel}%
+                        </Badge>
+                        {simSelected?.overflowedAt != null ? (
+                          <Badge variant="danger">
+                            Overflows at hour {simSelected.overflowedAt}
+                          </Badge>
+                        ) : (
+                          <Badge variant="success">No overflow</Badge>
+                        )}
+                        {simSelected?.collectedDuringRun && (
+                          <Badge variant="warning">Collected mid-run</Badge>
+                        )}
+                      </div>
+                      {simCurve.length > 0 && (
+                        <ResponsiveContainer width="100%" height={200}>
                           <LineChart data={simCurve}>
                             <CartesianGrid
                               strokeDasharray="3 3"
@@ -1656,53 +1805,95 @@ export default function NagaraiCommandCenter() {
                             />
                           </LineChart>
                         </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-                  )}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Staffing needed for scenario</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <table className="w-full">
-                        <thead>
-                          <tr>
-                            <Th>Zone</Th>
-                            <Th>Bins</Th>
-                            <Th>Event</Th>
-                            <Th>Collectors</Th>
-                            <Th>Vehicles</Th>
-                            <Th>Sweepers</Th>
-                            <Th>Total</Th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {simResult.staffing.map((s, i) => (
-                            <tr key={s.zone || i}>
-                              <Td className="font-medium">
-                                {s.zone}{" "}
-                                <span className="text-muted-foreground">
-                                  {s.name}
-                                </span>
-                              </Td>
-                              <Td>{s.bins}</Td>
-                              <Td>{s.eventMultiplier}×</Td>
-                              <Td>{s.staffing.collectors}</Td>
-                              <Td>{s.staffing.vehicles}</Td>
-                              <Td>{s.staffing.sweepers}</Td>
-                              <Td className="font-semibold">
-                                {s.staffing.totalStaff}
-                              </Td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      )}
                     </CardContent>
                   </Card>
-                </motion.div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+
+                {simResult.overflowEvents.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-danger-600 dark:text-danger-400">
+                        Overflow events detected
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {simResult.overflowEvents.map((o, i) => (
+                          <Badge key={i} variant="danger">
+                            {o.binId} @ hr {o.hour} (+{o.overKg} kg)
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Staffing needed for scenario</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Deployable crew + fleet to keep up with projected waste
+                      load.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {simResult.staffing.map((s, i) => (
+                        <div
+                          key={s.zone || i}
+                          className="rounded-xl border border-border p-4"
+                        >
+                          <div className="mb-3 flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {s.zone}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {s.name}
+                              </p>
+                            </div>
+                            <Badge variant="muted">{s.bins} bins</Badge>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="rounded-lg bg-muted/40 p-2">
+                              <p className="font-mono-data text-lg font-semibold text-foreground">
+                                {s.staffing.collectors}
+                              </p>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                Collectors
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-muted/40 p-2">
+                              <p className="font-mono-data text-lg font-semibold text-foreground">
+                                {s.staffing.vehicles}
+                              </p>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                Vehicles
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-success-500/10 p-2">
+                              <p className="font-mono-data text-lg font-semibold text-success-600 dark:text-success-400">
+                                {s.staffing.totalStaff}
+                              </p>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                Total crew
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 text-xs text-muted-foreground">
+                            {s.staffing.sweepers} sweepers ·{" "}
+                            {s.staffing.supervisors} supervisors · event ×
+                            {s.eventMultiplier}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </div>
         )}
 
         {/* ============ SWEEPING ============ */}
