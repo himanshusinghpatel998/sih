@@ -29,6 +29,7 @@ const ROLES = [
 ];
 
 const CYCLE_IMAGES = [
+  "/prediction.png",
   "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR8YT275QL5_PxPrn1li38W_EayI5hL5Tqq4cPDtOmzvMLKMbZQcM0JfLI&s=10",
   "https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?auto=format&fit=crop&w=1920&q=80",
   "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQEublTfIw_VYG4X3JEyYThZ6eW6ktsDSdLqKjDQ6nTJzuSIl9HRZofcq4&s=10",
