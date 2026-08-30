@@ -3,7 +3,7 @@ import { Menu, Clock } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import NotificationBell from './NotificationBell';
 
-export default function Topbar({ title, onToggleMenu }) {
+export default function Topbar({ title, onToggleMenu, rightSlot }) {
   const [time, setTime] = useState('');
 
   useEffect(() => {
@@ -27,6 +27,7 @@ export default function Topbar({ title, onToggleMenu }) {
         </span>
         <NotificationBell />
         <ThemeToggle />
+        {rightSlot}
       </div>
     </header>
   );

@@ -71,6 +71,26 @@
   --color-success-400: var(--color-brand-400);
   --color-success-500: var(--color-brand-500);
   --color-success-600: var(--color-brand-600);
+
+  /* Radix accordion (shadcn) height animation */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  /* Landing page marquee strip */
+  --animate-marquee: marquee 28s linear infinite;
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 :root {

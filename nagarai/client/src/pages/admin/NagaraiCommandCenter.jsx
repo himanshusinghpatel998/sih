@@ -229,26 +229,7 @@ export default function NagaraiCommandCenter() {
   return (
     <div className="min-h-screen space-y-6 p-4 md:p-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-wrap items-center justify-between gap-3"
-      >
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
-              <Sparkles className="h-5 w-5" />
-            </span>
-            NagarAI Command Center
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Predictive municipal waste &amp; sanitation intelligence — NagarCity
-          </p>
-        </div>
-        <Badge variant={engineUsed === 'xgboost-live' ? 'success' : 'muted'} className="h-fit">
-          <Cpu className="h-3 w-3" /> {engineUsed === 'xgboost-live' ? 'Live XGBoost models' : 'Rule engine (fallback)'}
-        </Badge>
-      </motion.div>
+    
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1.5 border-b border-border pb-3">
@@ -268,6 +249,26 @@ export default function NagaraiCommandCenter() {
           </button>
         ))}
       </div>
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
+        {/* <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            NagarAI Command Center
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Predictive municipal waste &amp; sanitation intelligence — NagarCity
+          </p>
+        </div> */}
+        <Badge variant={engineUsed === 'xgboost-live' ? 'success' : 'muted'} className="h-fit">
+          <Cpu className="h-3 w-3" /> {engineUsed === 'xgboost-live' ? 'Live XGBoost models' : 'Rule engine (fallback)'}
+        </Badge>
+      </motion.div>
 
       <AnimatePresence>
         {err && (

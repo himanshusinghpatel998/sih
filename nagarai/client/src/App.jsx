@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import StudentDashboard from './pages/student/StudentDashboard';
 import CollectorDashboard from './pages/collector/CollectorDashboard';
@@ -9,8 +10,8 @@ import NagaraiCommandCenter from './pages/admin/NagaraiCommandCenter';
 function ProtectedRoute({ children, allowedRole }) {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (!user) return <Navigate to="/" replace />;
-  if (allowedRole && user.role !== allowedRole) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (allowedRole && user.role !== allowedRole) return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -24,6 +25,10 @@ function App() {
       <Routes>
         <Route
           path="/"
+          element={user ? <Navigate to={`/${user.role}`} replace /> : <AuthPage />}
+        />
+        <Route
+          path="/login"
           element={user ? <Navigate to={`/${user.role}`} replace /> : <AuthPage />}
         />
         <Route
