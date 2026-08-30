@@ -45,6 +45,7 @@ import {
   getIncidents,
   getMLStatus,
   analyzeSweeping,
+  getSweepingNeeds,
   detectCctvFrame,
 } from "../../services/api";
 import { Button } from "../../components/ui/Button";
@@ -512,6 +513,19 @@ export default function NagaraiCommandCenter() {
           "Prediction engine unavailable — check MONGO_URI / ML_SERVICE_URL.",
         );
       }
+      // Pre-load every tab's persisted data so nothing renders empty.
+      try { setTasks((await getTasks()).data || []); } catch {}
+      try { setSweepNeeds((await getSweepingNeeds()).data || []); } catch {}
+      try {
+        const r = await generateRoutes({ weather: "clear" });
+        setRoutes((r.data && r.data.routes) || []);
+        setUnassigned((r.data && r.data.unassigned) || []);
+      } catch (e) {}
+      try {
+        const rec = await getBinRecommendations();
+        setRecommendations(rec.data || []);
+        setOptimized(rec.data.length > 0);
+      } catch (e) {}
       setLoading(false);
     })();
   }, [loadCity]);
