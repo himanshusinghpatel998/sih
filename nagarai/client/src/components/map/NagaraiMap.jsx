@@ -55,7 +55,19 @@ function HeatLayer({ points, radius = 40, blur = 25, max = 1.0 }) {
       layerRef.current.addTo(map);
     }
     layerRef.current.setLatLngs(pts);
-    return () => { if (layerRef.current) { layerRef.current.remove(); layerRef.current = null; } };
+    return () => {
+      const layer = layerRef.current;
+      if (!layer) return;
+      // leaflet.heat schedules redraw() via requestAnimFrame but never cancels
+      // it in onRemove — without this, a stale frame fires after teardown and
+      // crashes reading getSize() on the now-gone map.
+      if (layer._frame) {
+        L.Util.cancelAnimFrame(layer._frame);
+        layer._frame = null;
+      }
+      layer.remove();
+      layerRef.current = null;
+    };
   }, [map, points, radius, blur, max]);
 
   return null;
